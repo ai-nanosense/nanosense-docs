@@ -10,9 +10,11 @@ Public documentation for [NanoSense](https://nanosense.net) — the Medical RAG 
 - [SDK Reference](docs/sdk-reference.md) — Python and TypeScript SDK documentation with installation, authentication, query examples, error handling, and async usage.
 - [Partner Integration Guide](docs/partner-integration.md) — BFF templates (Express.js, FastAPI, React hook), webhook coupling, FHIR integration, and security checklist.
 - [Platform Validation Report](docs/testing-validation.md) — Production test results for all subscriber tiers: mode access, rate limits, billing, FHIR ingest, clinical accuracy.
+- [CSV Ingest Guide](docs/csv-ingest.md) — Import EMR CSV exports (Plato Medical + generic profiles): profile selection, export guidance, register → login → upload → verify walkthrough, error reports, known limits.
 
 ### Security & Compliance
 
+- [Regional Privacy & Compliance Brief](docs/regional-compliance.md) — SG PDPA and AU Privacy Act obligations summary plus data residency (ap-southeast-1 live, ap-southeast-2 planned). Informational only, not legal advice.
 - [Security Whitepaper](hipaa/security_whitepaper.md) — Architecture, encryption, access controls, tenant isolation, PHI protection, and HIPAA Security Rule coverage.
 - [Data Retention Policy](hipaa/data_retention_policy.md) — Retention periods, disposal methods, automated enforcement, and tenant termination procedures.
 - [Incident Response Plan](hipaa/incident_response_plan.md) — 7-phase incident response with severity classification and breach notification timelines.
