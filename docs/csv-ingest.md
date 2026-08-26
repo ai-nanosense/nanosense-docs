@@ -35,8 +35,8 @@ curl https://api.medintelligent.ai/ingest/profiles
     },
     {
       "name": "plato",
-      "description": "Plato Medical clinic OS CSV exports.",
-      "resources": ["AllergyIntolerance", "Condition", "Encounter", "Immunization", "MedicationRequest", "Observation", "Patient", "Procedure"]
+      "description": "Plato Medical CSV profile — STUB, awaiting Phase 0 sample",
+      "resources": ["AllergyIntolerance", "Condition", "MedicationRequest", "Patient"]
     }
   ]
 }
@@ -46,6 +46,8 @@ curl https://api.medintelligent.ai/ingest/profiles
 |---------|-----|
 | `plato` | Plato Medical clinics |
 | `generic` | Any other EMR (conventional `patient_id`, `code`, `display`, date columns) |
+
+> **Note:** the `plato` profile is in preview while its column mappings are finalized against real pilot exports. Until then, Plato clinics should use `profile=generic` with conventional column names, or contact us to have your export format added.
 
 This endpoint requires no authentication.
 
@@ -145,12 +147,23 @@ Repeat per domain file, e.g. `conditions.csv`, `medications.csv`, `allergies.csv
 
 ## Step 5: Verify
 
-Ingested data is immediately queryable via FHIR search:
+List the patients you just ingested:
+
+```bash
+curl "https://api.medintelligent.ai/patients?limit=5" \
+  -H "Authorization: Bearer <jwt>"
+```
+
+Optional: search by ID substring with `?q=<patient_id>`; page with `limit`/`offset`.
+
+FHIR search also works for core types:
 
 ```bash
 curl "https://api.medintelligent.ai/fhir/Patient?_count=5" \
   -H "Authorization: Bearer <jwt>"
 ```
+
+(FHIR read-back is subject to the stub-type limits below — some resource types return empty search results.)
 
 And via RAG queries against the same data:
 
@@ -183,7 +196,7 @@ If nothing could be transformed at all (wrong profile, missing required columns)
 
 ## Known Limits
 
-- **Stub read-back types:** FHIR search returns empty results for 14 stub resource types even after successful ingest. Patient, Condition, MedicationRequest, Observation, Procedure, Immunization, Encounter, and AllergyIntolerance read back normally.
+- **Stub read-back types:** FHIR search returns empty results for 14 stub resource types even after successful ingest. Patient, Condition, MedicationRequest, Observation, Procedure, Immunization, and Encounter read back normally. **Allergies are persisted and RAG-queryable, but FHIR search on AllergyIntolerance returns empty until the read route lands.**
 - **RAG queries are unaffected** — they are SQL-backed and see all ingested data regardless of FHIR read-back support.
 - One file per resource type; no cross-domain CSV in a single upload.
 - Uploads require a tenant-scoped token — personal (non-tenant) tokens get 403.

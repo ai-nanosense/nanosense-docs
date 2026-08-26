@@ -36,4 +36,4 @@ The OAIC publishes authoritative guidance on the APPs and health-information obl
 
 Singapore-region tenants have their data processed and stored in AWS `ap-southeast-1`. An Australia-resident deployment (`ap-southeast-2`) is planned so AU clinics can keep patient data onshore; until it ships, confirm cross-border transfer arrangements suit your obligations.
 
-Regardless of region: per-tenant isolation applies everywhere, and no patient data leaves the deployed region except at your direction (e.g., an explicit query routed to an external knowledge source such as PubMed, which receives the question text only — never your stored patient records).
+Regardless of region, per-tenant isolation applies everywhere. Patient records stay in the deployed region when in-region or self-hosted inference is used; if an external LLM provider (e.g. Groq or OpenAI) is configured, inference prompts may include patient baseline context (conditions, medications, allergies) and are processed by that provider. External knowledge lookups such as PubMed receive question text only — never your stored patient records.
