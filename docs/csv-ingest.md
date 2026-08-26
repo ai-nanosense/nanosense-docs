@@ -1,6 +1,6 @@
 # CSV Ingest Guide (EMR Export)
 
-**Base URL:** `https://api.medintelligent.ai` (production) | `http://localhost:8000` (local)
+**Base URL:** `https://api.nanosense.net` (production) | `http://localhost:8000` (local)
 
 Import patient data from any EMR that can export CSV. The CSV ingest pipeline transforms your export into FHIR resources and upserts them into your tenant — the same store used by the FHIR push path and by RAG queries.
 
@@ -22,7 +22,7 @@ CSV ingest is EMR-agnostic: each EMR has a *profile* that declares how its colum
 ## Step 1: Pick Your Profile
 
 ```bash
-curl https://api.medintelligent.ai/ingest/profiles
+curl https://api.nanosense.net/ingest/profiles
 ```
 
 ```json
@@ -78,7 +78,7 @@ Rules:
 Skip this if you already have an API key or JWT.
 
 ```bash
-curl -X POST https://api.medintelligent.ai/tenants/register \
+curl -X POST https://api.nanosense.net/tenants/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Raffles Family Clinic",
@@ -103,7 +103,7 @@ Response `201`:
 For a JWT (expires in 30 minutes):
 
 ```bash
-curl -X POST https://api.medintelligent.ai/tenants/auth/login \
+curl -X POST https://api.nanosense.net/tenants/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username": "raffles_admin", "password": "<strong-password>"}'
 ```
@@ -113,7 +113,7 @@ Both work for ingest: `Authorization: Bearer <jwt>` or `X-API-Key: mrag_...`.
 ## Step 4: Upload
 
 ```bash
-curl -X POST https://api.medintelligent.ai/ingest/csv \
+curl -X POST https://api.nanosense.net/ingest/csv \
   -H "Authorization: Bearer <jwt>" \
   -F "file=@patients.csv" \
   -F "profile=plato"
@@ -150,7 +150,7 @@ Repeat per domain file, e.g. `conditions.csv`, `medications.csv`, `allergies.csv
 List the patients you just ingested:
 
 ```bash
-curl "https://api.medintelligent.ai/patients?limit=5" \
+curl "https://api.nanosense.net/patients?limit=5" \
   -H "Authorization: Bearer <jwt>"
 ```
 
@@ -159,7 +159,7 @@ Optional: search by ID substring with `?q=<patient_id>`; page with `limit`/`offs
 FHIR search also works for core types:
 
 ```bash
-curl "https://api.medintelligent.ai/fhir/Patient?_count=5" \
+curl "https://api.nanosense.net/fhir/Patient?_count=5" \
   -H "Authorization: Bearer <jwt>"
 ```
 
@@ -168,7 +168,7 @@ curl "https://api.medintelligent.ai/fhir/Patient?_count=5" \
 And via RAG queries against the same data:
 
 ```bash
-curl -X POST https://api.medintelligent.ai/query \
+curl -X POST https://api.nanosense.net/query \
   -H "Authorization: Bearer <jwt>" \
   -H "Content-Type: application/json" \
   -d '{"question": "What are this patient'\''s active conditions?", "mode": "fast", "patient_id": "<patient_id>"}'
