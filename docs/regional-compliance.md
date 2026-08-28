@@ -31,9 +31,10 @@ The OAIC publishes authoritative guidance on the APPs and health-information obl
 
 | Region | Stack | Status |
 |--------|-------|--------|
-| Singapore | `ap-southeast-1` (AWS Singapore) | Live |
-| Australia | `ap-southeast-2` (AWS Sydney) | Planned |
+| Singapore / Southeast Asia | `ap-southeast-1` (AWS Singapore) | Live |
+| US & Americas | `us-east-1` (AWS N. Virginia) | Live |
+| Australia & Oceania | `ap-southeast-2` (AWS Sydney) | Terraform provisioned / Staged |
 
-Singapore-region tenants have their data processed and stored in AWS `ap-southeast-1`. An Australia-resident deployment (`ap-southeast-2`) is planned so AU clinics can keep patient data onshore; until it ships, confirm cross-border transfer arrangements suit your obligations.
+Singapore-region tenants have their data processed and stored in AWS `ap-southeast-1`. US and global marketplace tenants operate in `us-east-1`. Australia-resident infrastructure (`ap-southeast-2`) is Terraform-provisioned so AU clinics can maintain complete onshore residency.
 
 Regardless of region, per-tenant isolation applies everywhere. Patient records stay in the deployed region when in-region or self-hosted inference is used; if an external LLM provider (e.g. Groq or OpenAI) is configured, inference prompts may include patient baseline context (conditions, medications, allergies) and are processed by that provider. External knowledge lookups such as PubMed receive question text only — never your stored patient records.

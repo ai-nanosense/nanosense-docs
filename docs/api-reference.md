@@ -1,8 +1,8 @@
-# Medical Intelligence API Reference
+# NanoSense Medical RAG API Reference
 
-**Base URL:** `https://api.medintelligent.ai` (production) | `http://localhost:8000` (local)
+**Base URL:** `https://api.nanosense.net` (production) | `http://localhost:8000` (local)
 **Version:** 3.0
-**Interactive docs:** `{base_url}/docs` (Swagger UI) | `{base_url}/redoc` (ReDoc)
+**Interactive docs:** `https://api.nanosense.net/docs` (Swagger UI) | `https://api.nanosense.net/redoc` (ReDoc)
 
 ---
 
@@ -48,8 +48,8 @@ All errors return a consistent JSON envelope:
 ```json
 {
   "error": "Human-readable error message",
-  "timestamp": "2026-05-01T12:00:00.000000",
-  "path": "https://api.medintelligent.ai/query"
+  "timestamp": "2026-08-27T12:00:00.000000",
+  "path": "https://api.nanosense.net/query"
 }
 ```
 
@@ -168,7 +168,7 @@ Self-service clinic registration. Returns a tenant ID, admin user, API key, JWT,
 ### Login
 
 ```
-POST /auth/login
+POST /tenants/auth/login
 ```
 
 Exchange credentials for a JWT access token.
@@ -189,6 +189,36 @@ Exchange credentials for a JWT access token.
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
   "token_type": "bearer",
   "expires_in": 1800
+}
+```
+
+---
+
+### Claim API Key (Marketplace Onboarding)
+
+```
+POST /tenants/claim-key
+```
+
+One-time exchange of an AWS Marketplace claim token for the tenant API key and admin credentials. The token is single-use and expires after 7 days.
+
+**Request:**
+
+```json
+{
+  "claim_token": "mkt_claim_token_string",
+  "admin_email": "admin@sunrise.com",
+  "admin_password": "S3cureP@ss!"
+}
+```
+
+**Response:** `200 OK`
+
+```json
+{
+  "tenant_id": "t-sunrise-clinic-abc123",
+  "api_key": "mrag_live_abc123...",
+  "status": "claimed"
 }
 ```
 
@@ -768,6 +798,68 @@ Ingest a FHIR transaction or batch Bundle from an EHR system. Resources are upse
 
 ---
 
+## Universal CSV Ingest
+
+### List Ingest Profiles
+
+```
+GET /ingest/profiles
+```
+
+List available EMR profiles (e.g. `plato`, `generic`) and their supported resource mappings. No authentication required.
+
+**Response:** `200 OK`
+
+```json
+{
+  "profiles": [
+    {
+      "name": "generic",
+      "description": "Generic fallback — assumes FHIR-ish column names.",
+      "resources": ["AllergyIntolerance", "Condition", "Encounter", "Immunization", "MedicationRequest", "Observation", "Patient", "Procedure"]
+    },
+    {
+      "name": "plato",
+      "description": "Plato Medical CSV profile — STUB / template",
+      "resources": ["AllergyIntolerance", "Condition", "Encounter", "Immunization", "MedicationRequest", "Observation", "Patient", "Procedure"]
+    }
+  ]
+}
+```
+
+---
+
+### Upload EMR CSV
+
+```
+POST /ingest/csv?profile=generic
+```
+
+Upload a CSV export from your EMR. The file is mapped to standard FHIR resources and ingested into the tenant's clinical store. Requires authentication.
+
+**Query Parameters:**
+- `profile` (optional, default `generic`): `plato` or `generic`
+- `resource_type` (optional): target FHIR resource type if uploading a domain-specific file
+
+**Request:** `multipart/form-data` with `file=@export.csv` (max 10 MB per file).
+
+**Response:** `200 OK`
+
+```json
+{
+  "ok": true,
+  "profile": "generic",
+  "rows_seen": 25,
+  "resources_built": 25,
+  "results": [
+    {"resource_type": "Patient", "status": "201 Created", "count": 25}
+  ],
+  "errors": []
+}
+```
+
+---
+
 ## Medical Imaging
 
 ### Semantic Search
@@ -1115,7 +1207,7 @@ Register, log in, and run your first query in three API calls:
 
 ```bash
 # 1. Register your clinic
-curl -X POST https://api.medintelligent.ai/tenants/register \
+curl -X POST https://api.nanosense.net/tenants/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "My Clinic",
@@ -1127,7 +1219,7 @@ curl -X POST https://api.medintelligent.ai/tenants/register \
 # Save the access_token and api_key from the response
 
 # 2. Run a query using the JWT from registration
-curl -X POST https://api.medintelligent.ai/query \
+curl -X POST https://api.nanosense.net/query \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer <access_token>" \
   -d '{
@@ -1136,7 +1228,7 @@ curl -X POST https://api.medintelligent.ai/query \
   }'
 
 # 3. Check your usage
-curl https://api.medintelligent.ai/billing/usage \
+curl https://api.nanosense.net/billing/usage \
   -H "Authorization: Bearer <access_token>"
 ```
 
@@ -1147,7 +1239,7 @@ curl https://api.medintelligent.ai/billing/usage \
 ### Connecting to an EHR
 
 1. **Register your tenant** via `POST /tenants/register`
-2. **Ingest patient data** via `POST /fhir/Bundle` with a FHIR transaction Bundle from your EHR
+2. **Ingest patient data** via `POST /fhir/Bundle` with a FHIR transaction Bundle from your EHR or via `POST /ingest/csv` for CSV exports
 3. **Configure CDS Hooks** in your EHR to point at `GET /cds-services` for discovery
 4. **Run queries** via `POST /query` using patient IDs from your FHIR data
 5. **Review outcomes** via `GET /tenants/{id}/analytics/outcomes`
@@ -1166,8 +1258,8 @@ Interactive API documentation with try-it-out capability is available at `/docs`
 
 ```bash
 # Generate a Python client
-openapi-generator generate -i https://api.medintelligent.ai/openapi.json -g python -o ./sdk
+openapi-generator generate -i https://api.nanosense.net/openapi.json -g python -o ./sdk
 
 # Generate a TypeScript client
-openapi-generator generate -i https://api.medintelligent.ai/openapi.json -g typescript-fetch -o ./sdk
+openapi-generator generate -i https://api.nanosense.net/openapi.json -g typescript-fetch -o ./sdk
 ```

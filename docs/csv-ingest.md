@@ -35,8 +35,8 @@ curl https://api.nanosense.net/ingest/profiles
     },
     {
       "name": "plato",
-      "description": "Plato Medical CSV profile — STUB, awaiting Phase 0 sample",
-      "resources": ["AllergyIntolerance", "Condition", "MedicationRequest", "Patient"]
+      "description": "Plato Medical CSV profile — TEMPLATE; fill column maps from the Phase 0 sample",
+      "resources": ["AllergyIntolerance", "Condition", "Encounter", "Immunization", "MedicationRequest", "Observation", "Patient", "Procedure"]
     }
   ]
 }
@@ -44,10 +44,10 @@ curl https://api.nanosense.net/ingest/profiles
 
 | Profile | For |
 |---------|-----|
-| `plato` | Plato Medical clinics |
+| `plato` | Plato Medical clinics (8-resource template ready for pilot headers) |
 | `generic` | Any other EMR (conventional `patient_id`, `code`, `display`, date columns) |
 
-> **Note:** the `plato` profile is in preview while its column mappings are finalized against real pilot exports. Until then, Plato clinics should use `profile=generic` with conventional column names, or contact us to have your export format added.
+> **Note:** the `plato` profile has all 8 resource domain templates ready (`Patient`, `Encounter`, `Condition`, `MedicationRequest`, `Observation`, `Procedure`, `Immunization`, `AllergyIntolerance`). Until exact pilot export headers are bound, clinics can use `profile=generic` with standard columns or upload via the Clinician Portal at [nanosense.net/upload/](https://nanosense.net/upload/).
 
 This endpoint requires no authentication.
 
