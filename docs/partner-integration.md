@@ -517,3 +517,69 @@ Before going to production, verify the following:
 - [ ] HTTPS is enforced end-to-end on the BFF
 - [ ] Rate-limit headers are surfaced to users so they can see when they are approaching limits
 - [ ] `SESSION_SECRET` (Express) has been changed from the default to a strong random value
+
+---
+
+## PrivateLink Integration (Enterprise)
+
+Enterprise customers requiring maximum network security can connect to NanoSense over AWS PrivateLink. This establishes a private network path between your VPC and the NanoSense RAG API — traffic never traverses the public internet.
+
+### Prerequisites
+
+- An AWS account with a VPC in one of NanoSense's supported regions
+- An active NanoSense enterprise subscription
+- Your AWS Account ID or IAM Role ARN (provided to NanoSense for whitelisting)
+
+### Setup
+
+1. **Request PrivateLink access** — contact NanoSense support to whitelist your AWS account ID on the VPC Endpoint Service.
+2. **Deploy the CloudFormation template** in your VPC (the `customer-privatelink-endpoint.yml` template creates an Interface VPC Endpoint in minutes):
+
+```bash
+aws cloudformation create-stack \
+  --stack-name nanosense-privatelink \
+  --template-body file://customer-privatelink-endpoint.yml \
+  --parameters \
+    ParameterKey=VpcId,ParameterValue=vpc-xxxxx \
+    ParameterKey=SubnetIds,ParameterValue='subnet-xxxxx\,subnet-yyyyy' \
+    ParameterKey=SecurityGroupIds,ParameterValue='sg-xxxxx' \
+    ParameterKey=ServiceName,ParameterValue=com.amazonaws.vpce.ap-southeast-1.vpce-svc-xxxxx
+```
+
+3. **Copy the generated endpoint DNS name** from the CloudFormation outputs.
+4. **Configure your application** to use the endpoint DNS as the RAG API base URL. Private DNS is enabled by default, so in-VPC calls to `api.nanosense.net` resolve to the endpoint automatically.
+
+### How It Works
+
+```
+Your VPC                             NanoSense VPC
+┌─────────────────┐                 ┌──────────────────┐
+│ Your App        │                 │ RAG API (ECS)     │
+│ HTTPS → VPC     │                 │                  │
+│ Endpoint        │                 │                  │
+└────────┬────────┘                 └────────┬─────────┘
+         │                                   │
+         │  AWS PrivateLink                  │
+         │ (AWS backbone, no internet)       │
+         ▼                                   ▼
+┌─────────────────┐                 ┌──────────────────┐
+│ Interface VPC   │◄──────────────►│ NLB → ALB → ECS  │
+│ Endpoint        │                 │                  │
+└─────────────────┘                 └──────────────────┘
+```
+
+- **Authentication**: Standard `X-API-Key` or Bearer JWT — works identically over PrivateLink
+- **Data ingest**: FHIR push (`POST /fhir/Bundle`) and CSV ingest (`POST /ingest/csv`) both supported
+- **Isolation**: PostgreSQL RLS, tenant-partitioned cache, and a dedicated endpoint service per region
+
+### Available Regions
+
+| Region | Endpoint Service | Status |
+|--------|-----------------|--------|
+| ap-southeast-1 (Singapore) | `com.amazonaws.vpce.ap-southeast-1.vpce-svc-xxxxx` | Live |
+| us-east-1 (N. Virginia) | `com.amazonaws.vpce.us-east-1.vpce-svc-xxxxx` | Live |
+| ap-southeast-2 (Sydney) | `com.amazonaws.vpce.ap-southeast-2.vpce-svc-xxxxx` | Staged |
+
+### Multi-Partner Webhooks
+
+For platforms that manage more than one NanoSense partner, webhooks support per-partner HMAC secrets. Send the partner's ID in the `X-Partner-Id` header and sign the body with that partner's secret in `X-Partner-Signature` (`t=<ts>,v1=<hmac>`). Secrets are configured server-side via `PARTNER_WEBHOOK_SECRETS` (JSON object or comma-separated `partner_id:secret` pairs). See `POST /webhooks/partner/subscriber` and `POST /webhooks/partner/clinical-event`. The legacy `X-Telemedicine-Signature` / `TELEMEDICINE_WEBHOOK_SECRET` flow remains fully supported.
