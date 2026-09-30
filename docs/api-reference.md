@@ -1,7 +1,7 @@
 # NanoSense Medical RAG API Reference
 
 **Base URL:** `https://api.nanosense.net` (production) | `http://localhost:8000` (local)
-**Version:** 3.0
+**Version:** 3.1
 **Interactive docs:** `https://api.nanosense.net/docs` (Swagger UI) | `https://api.nanosense.net/redoc` (ReDoc)
 
 ---
@@ -1202,6 +1202,112 @@ Authenticated via HMAC-SHA256 signature in `X-Telemedicine-Signature` header. Fo
 **Subscriber events:** `subscriber.created` (provisions tenant), `subscriber.plan_changed` (adjusts budget), `subscriber.cancelled` (suspends tenant).
 
 ---
+
+## Consent & Data Sharing
+
+Patient-controlled consent and data sharing (implementation of the [Consent & Sharing Contract (v1)](consent-sharing-contract.md)). All routes are tenant-scoped: writes require a tenant-scoped token and may only target the caller's own tenant unless the caller is `admin`/`service`.
+
+**Vocabulary** (enforced server-side; unknown values → `422`):
+
+| Field | Allowed values |
+|-------|----------------|
+| `scopes[]` | `summary`, `treatment_history`, `lab_results`, `ai_insights`, `imaging`, `research` — `imaging`/`research` are reserved: legal on receipts but deny-by-default on data release |
+| `channel` | `app`, `web`, `otp`, `provider_invite`, `admin` |
+| `purposes[]` | Platform purpose vocabulary, e.g. `healthcare_service_delivery`, `third_party_referral` (min 1) |
+
+### Consent Receipts (CRUD)
+
+```text
+POST /consents                      — create a grant (direct) or receive a partner event
+POST /consents/webhook              — partner webhook alias (envelope only)
+GET  /consents?patient_id=…         — list a patient's receipts (optional recipient_id filter)
+POST /consents/{receipt_id}/revoke  — terminal revoke (idempotent)
+```
+
+**Direct grant** — `POST /consents` with a JWT or API key and a ConsentReceipt body:
+
+```json
+{
+  "patient_id": "fhir-patient-ref",
+  "purposes": ["healthcare_service_delivery"],
+  "scopes": ["summary", "lab_results"],
+  "granted_to": {
+    "principal_id": "recipient-principal",
+    "role": "doctor",
+    "institution": {"tenant_id": "…", "org_name": "…"}
+  },
+  "channel": "web",
+  "granted_at": "2026-10-01T09:00:00Z",
+  "expires_at": "2026-12-31T23:59:59Z"
+}
+```
+
+`granted_at`, `expires_at`, `revoked_at` (wire parity — always null on grant), `receipt_id`, and `event_id` are optional. Grants are content-idempotent: an identical active grant returns the same `receipt_id` without appending a second event (`201` on create, `200` on replay). Response: `{"result": …, "receipt": …}` with a derived `status` of `active` or `revoked`.
+
+**Revoke** — `POST /consents/{receipt_id}/revoke` (optional body `{"revoked_at": …, "reason": …}`). Terminal and idempotent; the only permitted receipt mutation is setting `revoked_at`. Recipients cannot revoke their own grant (`403`). Revocation purges the patient's query-cache entries in the background; clinical source records remain retained.
+
+### External provider invites (cross-institution)
+
+Scoped, expiring, **single-use** invite links for sharing with providers outside your institution. Redemption mints a scoped external grant and emits FHIR R4 `Consent` + `Provenance`.
+
+```text
+POST /consents/external-invites          — issue a single-use invite token
+POST /consents/external-invites/redeem   — redeem it (authenticated caller, any tenant)
+GET  /consents/external-invites/{jti}    — invite status + emitted FHIR Consent/Provenance
+```
+
+**Issue** — dual auth: partner HMAC signature (see **Partner HMAC webhook** below) or JWT/API key. Body: `patient_id`, `recipient_id`, `scopes[]`, optional `recipient_name`, `recipient_org`, `exp`, `jti`, `tenant_id`. Token claims are exactly `patient_id`, `recipient_id`, `scopes`, `exp`, `jti`. TTL is 72 hours (both default and hard cap); `jti`/`exp` may be hub-overridden — store the returned values. Idempotent by `jti` (`201` on create, `200` on replay). Response includes `token`, `jti`, `exp`, `expires_at`, `status`, `receipt_id`, `fhir.consent`/`fhir.provenance`, and — when `EXTERNAL_INVITE_SHARE_URL_BASE` is configured — ready-made `invite_url`/`redeem_url`.
+
+**Redeem** — body `{"token": "…"}`. Single-use: reuse fails with `409` (`invite_token_reused`), expiry with `410`, prior revocation with `409`. Success returns `{"status": "active", "jti", "receipt_id", "redeemed_at", "receipt", "fhir": {"consent", "provenance"}}`.
+
+### Partner HMAC webhook (consent events)
+
+Partner systems (e.g. Tamar) propagate consent changes as signed event envelopes to `POST /consents` or `POST /consents/webhook`:
+
+```json
+{"id": "evt-…", "type": "consent.granted", "data": {…}, "partner_id": "tamar"}
+```
+
+`type` is one of `consent.granted`, `consent.updated`, `consent.revoked`, `consent.expired`. Authentication: `X-Partner-Signature: t=<unix-timestamp>,v1=<hmac-sha256-hex>` computed over `"<timestamp>.<raw-body>"` (5-minute timestamp tolerance; per-partner secrets in `PARTNER_WEBHOOK_SECRETS` with `TELEMEDICINE_WEBHOOK_SECRET` fallback; `*_ALLOW_UNSIGNED` for local dev only). Envelopes are idempotent by envelope `id`. On `consent.revoked`, the patient's query-cache entries are purged. The hub also sends a best-effort partner-signed `external_invite.redeemed` notification to Tamar after a successful redeem.
+
+### X-Consent-Proof (patient-scoped requests)
+
+Every patient-scoped query, document ingestion, FHIR Bundle ingestion, and re-index request must carry an `X-Consent-Proof` header — an HS256 JWT signed with a dedicated `CONSENT_PROOF_SECRET` (never reuse the application JWT secret). An API key authenticates the service; it cannot authorize patient records. Required claims (see [patient-rag-authorization-v1.md](patient-rag-authorization-v1.md) for bindings and fingerprint rules):
+
+| Claim | Requirement |
+|-------|-------------|
+| `v`, `iss`, `aud` | `1`, `tamar`, `nanosense-rag` |
+| `tenant_id`, `rag_tenant_id` | Tamar tenant and mapped RAG tenant — `rag_tenant_id` must match the authenticated tenant |
+| `patient_id` | FHIR patient reference |
+| `recipient_id`, `recipient_role`, `recipient_tenant_id` | Actor principal, role, and tenant |
+| `operation` | `query`, `ingest`, `fhir_ingest`, or `reindex` — must match the route |
+| `purpose` | `healthcare_service_delivery` |
+| `scopes` | Nonempty subset of `summary`, `treatment_history`, `lab_results`, `ai_insights` |
+| `consent_version`, `grant_version` | Active receipt/grant fingerprints (grant `null` for self/authorized direct care) |
+| `iat`, `exp` | Epoch seconds; lifetime 1–300 s; no future issue time |
+| `jti` | Request trace identifier |
+
+The hub re-checks the consent mirror on every patient request — before retrieving cached answers or writing records — and independently requires active patient clinical consent plus, where applicable, an active recipient grant. Revoked, expired, stale-version, mismatched, or over-scoped proofs are denied; denied ingestion writes nothing.
+
+### 403 + `X-Consent-Reason` semantics
+
+Consent denials return `403` with an `X-Consent-Reason` header naming the failed check (denials never trigger clinical fallback):
+
+| `X-Consent-Reason` | Meaning |
+|--------------------|---------|
+| `missing_proof` | No `X-Consent-Proof` on a patient-scoped request |
+| `invalid_proof` | Bad signature, claims, or timestamps; proof not short-lived |
+| `proof_patient_mismatch` | Proof patient ≠ requested patient |
+| `proof_tenant_mismatch` | Proof tenant ≠ authenticated tenant |
+| `proof_recipient_mismatch` | Proof recipient ≠ caller |
+| `scope_mismatch` | Proof scopes invalid, or grant does not cover the requested scopes |
+| `scope_unsupported` | Patient-scoped mode cannot enforce record scopes (only `rag_cag` is supported patient-scoped) |
+| `reserved_scope` | Reserved scope (`imaging`/`research`) requested — grants no retrievable data |
+| `no_active_grant` | No active consent grant for this patient |
+| `revoked` | Governing grant was revoked |
+| `expired` | Governing grant has expired |
+
+Invite-token failures use the same header with distinct values and status codes: `invalid_invite_token` (`403`), `invite_token_mismatch` (`403`), `invite_token_reused` (`409`), `invite_revoked` (`409`), `invite_token_expired` (`410`), `unknown_jti` (`404`). A `503` with `X-Consent-Reason: consent_unavailable` indicates the consent mirror is unreachable — requests fail closed.
 
 ## Quickstart Example
 
