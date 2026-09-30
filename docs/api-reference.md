@@ -784,6 +784,8 @@ All clinical resource endpoints follow the same pattern:
 
 Each resource also supports read by ID: `GET /fhir/{ResourceType}/{id}`
 
+> **Stub read-back:** `AllergyIntolerance` is declared but not yet readable — `GET /fhir/AllergyIntolerance` currently returns an empty Bundle. Allergies are ingested, persisted, and RAG-queryable; full FHIR read-back is a known limit (see [CSV Ingest Guide — Known Limits](csv-ingest.md#known-limits)).
+
 ---
 
 ### Ingest FHIR Bundle
@@ -1246,7 +1248,9 @@ curl https://api.nanosense.net/billing/usage \
 
 ### FHIR Resource Support
 
-Fully supported (read + search + ingest): Patient, Encounter, Condition, MedicationRequest, Procedure, Observation, Immunization, AllergyIntolerance, ImagingStudy, DiagnosticReport.
+Fully supported (read + search + ingest): Patient, Encounter, Condition, MedicationRequest, Procedure, Observation, Immunization, ImagingStudy, DiagnosticReport.
+
+Ingest + RAG-queryable only (FHIR read/search returns an empty Bundle until the read route lands — see [CSV Ingest Guide — Known Limits](csv-ingest.md#known-limits)): AllergyIntolerance.
 
 Declared in CapabilityStatement (stub): CarePlan, CareTeam, Device, DocumentReference, Goal, Location, Medication, Organization, Practitioner, PractitionerRole, Provenance, RelatedPerson, ServiceRequest.
 

@@ -413,25 +413,25 @@ Customers are notified of subprocessor changes per the BAA. LLM providers are co
 
 ### 13.1 Automated Compliance Tools
 
-MedIntelligent includes built-in compliance validation tools:
+MedIntelligent provides built-in compliance validation tooling. Current status of each item:
 
-| Tool | Purpose | Command |
-|---|---|---|
-| HIPAA Gap Assessment | Evaluates all Security Rule safeguards; reports IMPLEMENTED/PARTIAL/MISSING with remediation steps | `python generate_hipaa_gap_report.py` |
-| RDS Security Checker | Validates 12 technical controls on the production database (encryption, TLS, backups, audit, network isolation) | `python check_rds_security.py` |
-| SLA Alert Evaluator | Real-time evaluation of error rate, latency, hallucination rate, and health status against SLA thresholds | `GET /alerts` |
+| Tool | Purpose | Command | Status |
+|---|---|---|---|
+| HIPAA Gap Assessment | Evaluates all Security Rule safeguards; reports IMPLEMENTED/PARTIAL/MISSING with remediation steps | `python generate_hipaa_gap_report.py` | **Planned** — not yet shipped |
+| RDS Security Checker | Validates 12 technical controls on the production database (encryption, TLS, backups, audit, network isolation) | `python check_rds_security.py` | **Planned** — not yet shipped |
+| SLA Alert Evaluator | Real-time evaluation of error rate, latency, hallucination rate, and health status against SLA thresholds | `GET /alerts` | Available |
 
 ### 13.2 HIPAA Security Rule Coverage
 
 | Safeguard Category | Citation | Status |
 |---|---|---|
-| Risk Analysis | 164.308(a)(1)(ii)(A) | Implemented (gap assessment tool) |
+| Risk Analysis | 164.308(a)(1)(ii)(A) | Implemented (manual gap assessment; automated gap-report tooling Planned) |
 | Workforce Security | 164.308(a)(3) | Implemented (RBAC, RLS) |
 | Information Access Management | 164.308(a)(4) | Implemented (role-based authorization) |
 | Security Awareness Training | 164.308(a)(5) | Customer responsibility |
 | Security Incident Procedures | 164.308(a)(6) | Implemented (incident response plan) |
 | Contingency Plan | 164.308(a)(7) | Implemented (RDS backups, Multi-AZ) |
-| Facility Access Controls | 164.310(a) | Inherited from AWS (SOC 2, ISO 27001) |
+| Facility Access Controls | 164.310(a) | Inherited from AWS (covered by AWS's own SOC 2 and ISO 27001 attestations). MedIntelligent SOC 2 Type II: **In Progress — anticipated completion Q4 2026** (not yet attained) |
 | Workstation Security | 164.310(b)-(c) | Customer responsibility |
 | Access Control | 164.312(a) | Implemented (JWT, API keys, RBAC, RLS) |
 | Audit Controls | 164.312(b) | Implemented (3-layer audit logging) |

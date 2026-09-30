@@ -364,11 +364,13 @@ Content-Type: application/json
 | Procedure | Yes | Yes | Yes |
 | Observation | Yes | Yes | Yes |
 | Immunization | Yes | Yes | Yes |
-| AllergyIntolerance | Yes | Yes | Yes |
+| AllergyIntolerance | Stub* | Stub* | Yes |
 | ImagingStudy | Yes | Yes | Yes |
 | DiagnosticReport | Yes | Yes | Yes |
 
 Resources not in this list return 422.
+
+\* `AllergyIntolerance` ingest is supported and the data is RAG-queryable, but FHIR read/search currently returns an empty Bundle (stub read-back — see [CSV Ingest Guide — Known Limits](csv-ingest.md#known-limits)).
 
 ### Read Back Ingested Data
 
@@ -514,7 +516,7 @@ Before going to production, verify the following:
 - [ ] BFF auth middleware (`requireAuth` / `get_current_user`) has been replaced with real authentication
 - [ ] `ALLOWED_ORIGINS` is restricted to your actual frontend domain(s)
 - [ ] Session store uses Redis or a database in production (not the default in-memory store in the Express template)
-- [ ] HTTPS is enforced end-to-end on the BFF
+- [ ] HTTPS is enforced on all BFF routes (no plain-HTTP path)
 - [ ] Rate-limit headers are surfaced to users so they can see when they are approaching limits
 - [ ] `SESSION_SECRET` (Express) has been changed from the default to a strong random value
 

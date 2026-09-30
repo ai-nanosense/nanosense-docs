@@ -226,7 +226,7 @@ If the breach affects 500+ individuals in a single state or jurisdiction, promin
 **Recovery verification:**
 
 - [ ] Run `check_rds_security.py` — all checks must PASS
-- [ ] Run `generate_hipaa_gap_report.py` — no new MISSING or FAIL findings
+- [ ] Run `generate_hipaa_gap_report.py` (Planned — not yet shipped; run when available) — no new MISSING or FAIL findings
 - [ ] Verify `GET /health` returns all components `available`
 - [ ] Verify `GET /alerts` returns `status: green`
 - [ ] Confirm audit logging is operational (submit test request, verify audit entry)
@@ -317,7 +317,7 @@ This plan must be tested at least annually through one of the following:
 |---|---|---|
 | **Tabletop exercise** | Annual (minimum) | Walk through a simulated Sev 1 breach scenario with the full IRT; validate communication chains, decision points, and notification timelines |
 | **Technical drill** | Annual | Simulate a compromised API key or tenant; verify containment steps (key revocation, tenant suspension) work within target timelines |
-| **Notification drill** | Annual | Dry-run the CE notification process end-to-end; verify contact information is current |
+| **Notification drill** | Annual | Dry-run the full CE notification process (detection through notification); verify contact information is current |
 
 **Test results** are documented and retained for 6 years. Findings are incorporated into the next plan revision.
 
@@ -370,8 +370,8 @@ The incident register is retained for 6 years and is available for HHS inspectio
 |---|---|
 | Business Associate Agreement | `hipaa/baa_template.md` |
 | Data Retention Policy | `hipaa/data_retention_policy.md` |
-| HIPAA Gap Assessment Tool | `generate_hipaa_gap_report.py` |
-| RDS Security Checker | `check_rds_security.py` |
+| HIPAA Gap Assessment Tool | `generate_hipaa_gap_report.py` (Planned — not yet shipped) |
+| RDS Security Checker | `check_rds_security.py` (Planned — not yet shipped) |
 | SLA Alert Rules | `observability/alert_rules.yml` |
 | SLA Alert Evaluator | `observability/alerts.py` |
 | Audit Logging Schema | `hipaa_db_migration.py` |

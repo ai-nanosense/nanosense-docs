@@ -231,10 +231,10 @@ This policy is reviewed annually by the Privacy Officer and Security Officer. Th
 | Document | Location |
 |---|---|
 | Business Associate Agreement | `hipaa/baa_template.md` |
-| HIPAA Gap Assessment Tool | `generate_hipaa_gap_report.py` |
+| HIPAA Gap Assessment Tool | `generate_hipaa_gap_report.py` (Planned — not yet shipped) |
 | Retention Enforcer | `retention_enforcer.py` |
 | HIPAA DB Migration (schema) | `hipaa_db_migration.py` |
-| RDS Security Checker | `check_rds_security.py` |
+| RDS Security Checker | `check_rds_security.py` (Planned — not yet shipped) |
 | PHI Utilities | `phi_utils.py` |
 
 ---
