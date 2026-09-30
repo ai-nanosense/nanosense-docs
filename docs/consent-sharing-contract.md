@@ -402,4 +402,4 @@ Marked explicitly; resolve before the v1 sign-off or defer with an owner.
 | tamar-agent | TAM-001 / TAM-002 implementer | ☐ pending |
 | docs-lead | Author | ☑ drafted |
 
-*Ticket: `/Users/a1234/workspaces/nanosense-workspace/nanosense-docs/docs/tickets/nanosense-docs/DOC-002-consent-contract-spec.md`*
+*Ticket: DOC-002-consent-contract-spec — tracked internally in ai-nanosense/med-intelligent `docs/tickets/`*

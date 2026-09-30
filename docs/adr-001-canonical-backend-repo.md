@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (decision); retirement half **blocked on owner sign-off**
 - **Date:** 2026-09-24
-- **Ticket:** [CORE-001](tickets/nanosense-core/CORE-001-source-of-truth.md) (closes architecture gap review G7)
+- **Ticket:** CORE-001 — tracked internally in ai-nanosense/med-intelligent `docs/tickets/` (closes architecture gap review G7)
 - **Scope of this ADR:** decision + safe textual reference updates only. No repository is archived or deleted by this ticket; no remote git state is changed.
 
 ---
@@ -42,7 +42,7 @@ The workspace contains two near-duplicate FastAPI backends: `nanosense-core` and
 - `nanosense-infra/docs/cost-review-2026-08-use1-marketplace.md:23-24` labels `nanosense-core` the "active codebase" and `med-intelligent` "legacy" — **inverted** relative to commit reality.
 - Production CI already builds the live ECS image from **med-intelligent** source: `nanosense-core/.github/workflows/deploy.yml:15-16` — *"this repo's fork is stale/diverged (unmergeable), so the marketplace image builds from ai-nanosense/med-intelligent instead"* (`BACKEND_REPO: ai-nanosense/med-intelligent`, image `nanosense-prod/rag-backend`).
 - `nanosense-infra` Terraform/OIDC config (`infra/terraform/envs/prod-use1-marketplace/main.tf:762,780`) still trusts `repo:ai-nanosense*/nanosense-core*` and attaches `policy/nanosense-core-deploy`.
-- Corroborating assessments: `nanosense-docs/docs/architecture-gap-review.md` (G7) and `med-intelligent/docs/superpowers/plans/2026-08-26-plato-clinic-onboarding-gap-fill.md:329` ("diverged history — unmergeable. Fix = build med-intelligent instead").
+- Corroborating assessments: the architecture gap review (G7), tracked internally in ai-nanosense/med-intelligent `docs/architecture-gap-review.md`, and `med-intelligent/docs/superpowers/plans/2026-08-26-plato-clinic-onboarding-gap-fill.md:329` ("diverged history — unmergeable. Fix = build med-intelligent instead").
 
 ## 2. Decision
 
@@ -97,7 +97,7 @@ Rationale: newer commits (2026-09-23 vs 2026-08-26), strictly more features (§1
 
 | # | Step |
 |---|---|
-| D1 | Tick CORE-001 acceptance criteria in `nanosense-docs/docs/tickets/README.md` and the ticket file; record the CI-deploy verification result (CORE-001 "Testing Requirements": deploy pipeline passes against the canonical repo). |
+| D1 | Tick CORE-001 acceptance criteria in the ticket set tracked internally in ai-nanosense/med-intelligent `docs/tickets/` (index + ticket file); record the CI-deploy verification result (CORE-001 "Testing Requirements": deploy pipeline passes against the canonical repo). |
 | D2 | File/refresh follow-ups F1–F4 (§5 and §6) so the naming debt (`nanosense-core-deploy` policy, `med-intelligent/docs/*` references) is tracked to zero. |
 
 ## 5. Follow-ups (documented here — deliberately NOT changed by this ticket)

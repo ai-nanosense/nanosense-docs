@@ -26,7 +26,7 @@ Public documentation for [NanoSense](https://nanosense.net) — the Medical RAG 
 
 ## Architecture conformance status
 
-What these docs describe is tracked against what is actually implemented in the [Architecture Gap Review](docs/architecture-gap-review.md) (review date 2026-09-30). Summary:
+What these docs describe is tracked against what is actually implemented in the architecture gap review (review date 2026-09-30), tracked internally in ai-nanosense/med-intelligent `docs/architecture-gap-review.md`. Summary:
 
 | Status | Capabilities |
 |--------|--------------|
@@ -37,7 +37,7 @@ What these docs describe is tracked against what is actually implemented in the 
 
 **Encryption:** data is protected with TLS 1.2+ in transit, AWS KMS AES-256 at rest, and Fernet field-level encryption for sensitive fields. This is **not** end-to-end encryption — client-held keys / zero-knowledge sharing are future work (see the [Security Whitepaper](hipaa/security_whitepaper.md#2-data-encryption)).
 
-Per-claim evidence for every compliance/feature claim in this repo: [Claims Audit Worksheet](docs/claims-audit-worksheet.md). Status labels are governed by the gap review; the SOC 2 label ("In Progress, Q4 2026") must stay consistent across the marketing site (WEB-001).
+Per-claim evidence for every compliance/feature claim in this repo: [Claims Audit Worksheet](docs/claims-audit-worksheet.md). Status labels are governed by the architecture gap review, tracked internally in ai-nanosense/med-intelligent `docs/architecture-gap-review.md`; the SOC 2 label ("In Progress, Q4 2026") must stay consistent across the marketing site (WEB-001).
 
 ## Interactive API Docs
 

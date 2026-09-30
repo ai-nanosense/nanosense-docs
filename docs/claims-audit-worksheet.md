@@ -2,9 +2,9 @@
 
 **Ticket:** DOC-001 — Claims Audit Across Public Docs · **Repo:** nanosense-docs · **Audit date:** 2026-09-30 · **Owner:** docs-lead
 
-**Scope:** every compliance/feature claim in `docs/` (`api-reference.md`, `sdk-reference.md`, `partner-integration.md`, `regional-compliance.md`, `testing-validation.md`, `csv-ingest.md`) and `hipaa/` (`security_whitepaper.md`, `data_retention_policy.md`, `incident_response_plan.md`, `baa_template.md`) plus `README.md`. `docs/architecture-gap-review.md`, `docs/consent-sharing-contract.md`, and `docs/tickets/` are reference/spec material — audited for consistency but not swept as claim surfaces.
+**Scope:** every compliance/feature claim in `docs/` (`api-reference.md`, `sdk-reference.md`, `partner-integration.md`, `regional-compliance.md`, `testing-validation.md`, `csv-ingest.md`) and `hipaa/` (`security_whitepaper.md`, `data_retention_policy.md`, `incident_response_plan.md`, `baa_template.md`) plus `README.md`. The architecture gap review and ticket set (tracked internally in ai-nanosense/med-intelligent `docs/architecture-gap-review.md` and `docs/tickets/`) and `docs/consent-sharing-contract.md` are reference/spec material — audited for consistency but not swept as claim surfaces.
 
-**Baseline:** [Architecture Gap Review](architecture-gap-review.md) (§3 capability verdicts, §4 gap register G1–G7).
+**Baseline:** Architecture Gap Review (§3 capability verdicts, §4 gap register G1–G7), tracked internally in ai-nanosense/med-intelligent `docs/architecture-gap-review.md`.
 
 **Evidence anchors:**
 - **G4 (SOC 2):** `/Users/a1234/workspaces/nanosense-workspace/med-intelligent/docs/tenant-isolation-model.md:112` — "SOC2 Type II | In progress. Anticipated completion: Q4 2026." Approved status label: **"SOC 2 Type II — In Progress, Q4 2026"** (reuse verbatim in WEB-001).
@@ -137,7 +137,7 @@
 
 | File | Text changes | What changed |
 |---|---:|---|
-| `README.md` | 2 | Added `consent-sharing-contract.md` to contents (Security & Compliance); added "Architecture conformance status" section linking `docs/architecture-gap-review.md` |
+| `README.md` | 2 | Added `consent-sharing-contract.md` to contents (Security & Compliance); added "Architecture conformance status" section referencing the architecture gap review (tracked internally in ai-nanosense/med-intelligent `docs/architecture-gap-review.md`) |
 | `docs/api-reference.md` | 2 | AllergyIntolerance stub footnote (Clinical Resources); corrected "Fully supported (read + search + ingest)" list (#15) |
 | `docs/sdk-reference.md` | 0 | — (ingest-scoped claim at line 473 is accurate) |
 | `docs/partner-integration.md` | 2 | AllergyIntolerance row corrected to stub + footnote (#22); "HTTPS is enforced end-to-end" → "HTTPS is enforced on all BFF routes" (#25) |
@@ -161,7 +161,7 @@ grep -rn -i -E 'consent|knowledge graph|care circle|Circle of Trust|family|careg
 grep -rn -i -E 'compliant|certif|attest|HIPAA|FHIR' README.md docs/*.md hipaa/*.md
 ```
 
-Post-fix expectation: every remaining `SOC 2` / `end-to-end` hit is either (a) inside `docs/architecture-gap-review.md` or `docs/adr-001-canonical-backend-repo.md`, where the overclaims are quoted as findings/decisions, or (b) explicitly qualified ("AWS's own SOC 2 …", "SOC 2 Type II — In Progress …", "not end-to-end encryption").
+Post-fix expectation: every remaining `SOC 2` / `end-to-end` hit is either (a) inside `docs/adr-001-canonical-backend-repo.md` (or the architecture gap review, tracked internally in ai-nanosense/med-intelligent `docs/architecture-gap-review.md`), where the overclaims are quoted as findings/decisions, or (b) explicitly qualified ("AWS's own SOC 2 …", "SOC 2 Type II — In Progress …", "not end-to-end encryption").
 
 ## Evidence spot-checks (acceptance)
 
@@ -171,7 +171,7 @@ Post-fix expectation: every remaining `SOC 2` / `end-to-end` hit is either (a) i
 
 ## Newly found mismatches — for docs-lead gap-review update
 
-Per handoff notes these are reported, not written into `architecture-gap-review.md` directly:
+Per handoff notes these are reported, not written into the architecture gap review (tracked internally in ai-nanosense/med-intelligent `docs/architecture-gap-review.md`) directly:
 
 1. **F2 — FHIR AllergyIntolerance read/search overclaim (docs, G-adjacent):** `api-reference.md`, `partner-integration.md` presented AllergyIntolerance as fully readable/searchable while `med-intelligent/fhir_routes.py:616-654` stubs it (empty Bundles). Fixed in this ticket; a durable "FHIR read-back stubs" row in the gap register would help future doc work. Candidate owner: docs-lead (gap register) + med-intelligent (read route).
 2. **F3 — Unverifiable compliance tooling:** `generate_hipaa_gap_report.py` and `check_rds_security.py` are referenced across `hipaa/` docs but exist in no repo. Labeled "Planned — not yet shipped" here; if the scripts live outside version control, restore the claims with a path, or track a ticket to ship the tools.
