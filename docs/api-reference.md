@@ -1,7 +1,7 @@
 # NanoSense Medical RAG API Reference
 
 **Base URL:** `https://api.nanosense.net` (production) | `http://localhost:8000` (local)
-**Version:** 3.1
+**Version:** 3.2
 **Interactive docs:** `https://api.nanosense.net/docs` (Swagger UI) | `https://api.nanosense.net/redoc` (ReDoc)
 
 ---
@@ -716,6 +716,335 @@ GET /tenants/{tenant_id}/analytics/reports
 ```
 DELETE /tenants/{tenant_id}/analytics/reports/{report_id}
 ```
+
+---
+
+## Knowledge Graph Insights
+
+Patient-scoped reads over the persisted per-patient knowledge graph (entities, relations, mention trends). Both endpoints are read-only projections over stored rows — extraction runs incrementally when data lands (CSV ingest, patient timeline reads), never at request time.
+
+**Consent:** these are patient-scoped reads and require a covering `ai_insights` grant (see [Consent & Data Sharing](#consent--data-sharing)), presented via [`X-Consent-Proof`](#x-consent-proof-patient-scoped-requests). Without one, the request is refused with `403` + [`X-Consent-Reason`](#403--x-consent-reason-semantics). A tenant-scoped JWT is required in all cases.
+
+### Get Patient Insights
+
+```text
+GET /kg/insights?patient_id=…
+```
+
+**Response:**
+
+```json
+{
+  "patient_id": "patient-123",
+  "generated_at": "2026-10-08T12:00:00+00:00",
+  "entities": [
+    {"id": "e-1", "type": "condition", "label": "Hypertension", "mentions": 7, "first_seen": "2026-05-02T09:14:00+00:00", "last_seen": "2026-10-01T16:20:00+00:00"}
+  ],
+  "relations": [
+    {"source_id": "e-2", "target_id": "e-1", "type": "treats", "evidence_count": 3}
+  ],
+  "trends": [
+    {"entity_id": "e-1", "label": "Hypertension", "direction": "rising", "window_days": 90}
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `patient_id` | string | Echo of the requested patient |
+| `generated_at` | string (ISO 8601) | Projection timestamp |
+| `entities[]` | object[] | `id` (string), `type` (enum below), `label` (string), `mentions` (int, accumulated across refreshes), `first_seen` / `last_seen` (ISO 8601) |
+| `relations[]` | object[] | `source_id` / `target_id` (entity ids), `type` (enum below), `evidence_count` (int ≥ 1) |
+| `trends[]` | object[] | One entry per entity (same length as `entities[]`): `entity_id`, `label`, `direction` (enum below), `window_days` (int — always `90`) |
+
+**Enums (closed vocabularies):**
+
+| Vocabulary | Values |
+|------------|--------|
+| `entities[].type` (also `nodes[].type`) | `condition`, `medication`, `procedure`, `observation`, `anatomy` |
+| `relations[].type` (also `links[].relationship`) | `treats`, `causes`, `interacts_with`, `part_of`, `associated_with` |
+| `trends[].direction` | `rising`, `falling`, `stable` |
+
+Trends are mention velocity over the trailing 90 days, split into two halves: more mentions in the recent half → `rising`, fewer → `falling`, equal (or none in the window) → `stable`.
+
+### Get Graph (visualization payload)
+
+```text
+GET /kg/insights/graph?patient_id=…
+```
+
+`{nodes, links}` payload for the Knowledge Graph visualizer. Node ids are the same persisted entity ids as `/kg/insights`, so the two responses can be joined directly.
+
+**Response:**
+
+```json
+{
+  "nodes": [
+    {"id": "e-1", "label": "Hypertension", "type": "condition", "color": "#c0392b", "centrality": 0.42, "size": 28, "is_hub": true}
+  ],
+  "links": [
+    {"source": "e-2", "target": "e-1", "label": "treats", "relationship": "treats", "evidence_count": 3}
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nodes[]` | object[] | `id`, `label`, `type` (entity enum above), `color` (the visualizer's palette color for `type`; unknown types get the palette's `unknown` entry), `centrality` (float), `size` (number), `is_hub` (bool) |
+| `links[]` | object[] | `source` / `target` (node ids), `label` (the relationship rendered with spaces, e.g. `interacts with`), `relationship` (relation enum above), `evidence_count` (int ≥ 1) |
+
+Relations whose endpoints are not both present as nodes are omitted from `links`.
+
+---
+
+## Lab Analytics
+
+Analytics over the ingested EHR observation store — there is no separate lab store, so every figure derives from ingested observations (LOINC code, numeric value, collection timestamp). `days` selects the window on all three endpoints: default `365`, allowed `1`–`3650`.
+
+**Consent:** `/trends` and `/summary` are patient-scoped reads and require a covering `lab_results` grant (see [Consent & Data Sharing](#consent--data-sharing), [`X-Consent-Proof`](#x-consent-proof-patient-scoped-requests)); without one the request is refused with `403` + [`X-Consent-Reason`](#403--x-consent-reason-semantics). `/population` is tenant-scoped only (JWT tenant) and requires no patient consent grant — it releases de-identified tenant aggregates only.
+
+### Lab Trends
+
+```text
+GET /analytics/labs/trends?patient_id=…&loinc_code=…&days=…
+```
+
+Time series plus summary for one analyte of one patient.
+
+**Response:**
+
+```json
+{
+  "patient_id": "patient-123",
+  "loinc_code": "2345-7",
+  "unit": "mg/dL",
+  "series": [
+    {"date": "2026-09-01", "value": 95.0, "flag": "normal"},
+    {"date": "2026-10-01", "value": 110.0, "flag": "high"}
+  ],
+  "summary": {"latest": 110.0, "min": 95.0, "max": 110.0, "count": 2, "trend": "rising"}
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `unit` | string \| null | Unit of the most recent observation carrying one; `null` if none |
+| `series[].date` | string | Collection date (date part of the collection timestamp, ISO) |
+| `series[].value` | number | Observation value |
+| `series[].flag` | string | `low`, `normal`, or `high` (flag rules below) |
+| `summary` | object | `latest`, `min`, `max` (numbers; `null` when the series is empty), `count` (int), `trend` (rules below) |
+
+**Flag rules (`low` | `normal` | `high`):** each value is compared against a standard adult reference range for its LOINC code. A value inside the range — and any analyte with no known reference range — is flagged `normal` (never falsely abnormal). Ranges are applied to the stored unit; no unit conversion is performed.
+
+**Trend rules (`rising` | `falling` | `stable`):** for two or more values ordered by collection time, the mean of the recent half of the series is compared against the mean of the earlier half: more than +5 % → `rising`, less than −5 % → `falling`, otherwise `stable`. Fewer than two values → `stable`.
+
+### Lab Summary
+
+```text
+GET /analytics/labs/summary?patient_id=…&days=…
+```
+
+Latest result per analyte in the window.
+
+**Response:**
+
+```json
+{
+  "patient_id": "patient-123",
+  "panels": [
+    {
+      "loinc_code": "2345-7",
+      "name": "Blood glucose",
+      "latest_value": 110.0,
+      "unit": "mg/dL",
+      "flag": "high",
+      "collected_at": "2026-10-01T09:30:00+00:00",
+      "delta_prev": 15.0
+    }
+  ]
+}
+```
+
+One entry per analyte with data in the window. `name` is the observation's display name (falls back to the LOINC code), `flag` follows the flag rules above, `collected_at` is the collection timestamp of the latest result (ISO 8601), and `delta_prev` is `latest_value` minus the previous value for that analyte (`null` when only one value exists in the window).
+
+### Population Aggregates
+
+```text
+GET /analytics/labs/population?loinc_code=…&days=…
+```
+
+**De-identified tenant aggregates** for one analyte. The query projects aggregate columns only — no patient identifier and no per-patient row is ever returned. Tenant-scoped JWT only; no patient consent grant is required because nothing patient-scoped is released.
+
+**Response:**
+
+```json
+{
+  "loinc_code": "2345-7",
+  "n": 42,
+  "mean": 103.4,
+  "p50": 99.0,
+  "p90": 127.2,
+  "abnormal_ratio": 0.19
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `n` | int | Observation count in the window |
+| `mean`, `p50`, `p90` | number \| null | Mean and percentiles; `null` when `n` is 0 |
+| `abnormal_ratio` | number \| null | Share of values outside the known reference range; `null` when `n` is 0. Analytes without a known range never count as abnormal |
+
+---
+
+## Literature Mining
+
+PubMed-grounded research tooling: multi-query batch search, saved corpora, and structured evidence tables with strict PMID citations. All routes require a tenant-scoped JWT. Patient-scoped corpora (on save and on read) additionally require a covering `ai_insights` grant — presented via [`X-Consent-Proof`](#x-consent-proof-patient-scoped-requests) — and are refused with `403` + [`X-Consent-Reason`](#403--x-consent-reason-semantics) otherwise (`research` is a reserved scope: legal on receipts but deny-by-default on data release). Cross-tenant reads are denied on save and read: a foreign `corpus_id` is indistinguishable from a missing one (`404`).
+
+### Batch Search
+
+```text
+POST /literature/search
+```
+
+Batch PubMed search across multiple queries with per-query grouped, paginated results.
+
+**Request:**
+
+```json
+{
+  "queries": ["hypertension treatment", "beta blockers"],
+  "max_results": 5,
+  "page": 1
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `queries` | string[] | ≥ 1 non-empty PubMed queries |
+| `max_results` | int | Page size per query (1–50, default 5) |
+| `page` | int | 1-based page within each query (default 1) |
+
+**Response:**
+
+```json
+{
+  "page": 1,
+  "max_results": 5,
+  "queries": [
+    {
+      "query": "hypertension treatment",
+      "page": 1,
+      "page_size": 5,
+      "total": 128,
+      "results": [
+        {"pmid": "30000001", "title": "…", "journal": "J Clin Med", "year": "2021", "authors": "…", "abstract_snippet": "…", "query": "hypertension treatment"}
+      ]
+    }
+  ]
+}
+```
+
+`total` is the PubMed hit count for that query; `results` holds at most `page_size` rows in relevance order. Each result row carries `pmid`, `title`, `journal`, `year`, `authors`, `abstract_snippet`, and `query` (the query that produced the row).
+
+### Saved Corpora
+
+```text
+POST /literature/corpora              — save a corpus
+GET  /literature/corpora              — list saved corpora
+GET  /literature/corpora/{corpus_id}  — corpus detail (articles included)
+```
+
+**Create** — `POST /literature/corpora`:
+
+```json
+{
+  "name": "HTN first-line therapy",
+  "scope": "patient",
+  "patient_id": "patient-123",
+  "pmids": ["30000001", "30000002"]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | 1–255 characters |
+| `scope` | string | `patient` or `tenant` |
+| `patient_id` | string | Required for `scope: "patient"` (consent-gated); ignored for `scope: "tenant"` (stored as `null`) |
+| `pmids` | string[] | ≥ 1 PMID; normalized to unique, order-preserving strings |
+
+Article metadata (`title`, `journal`, `year`, `authors`, `abstract`) is snapshotted from PubMed at save time (best effort — PMIDs PubMed does not resolve still save, with empty metadata fields).
+
+**Corpus object** — create and detail responses:
+
+```json
+{
+  "corpus_id": 42,
+  "tenant_id": "tenant-1",
+  "name": "HTN first-line therapy",
+  "scope": "patient",
+  "patient_id": "patient-123",
+  "created_by": "user-7",
+  "created_at": "2026-10-08T12:00:00+00:00",
+  "updated_at": "2026-10-08T12:00:00+00:00",
+  "article_count": 2,
+  "articles": [
+    {"corpus_id": 42, "pmid": "30000001", "title": "…", "journal": "…", "year": "2021", "authors": "…", "abstract": "…", "added_at": "2026-10-08T12:00:00+00:00"}
+  ]
+}
+```
+
+`articles` is present on create and detail only; `article_count` is always present. `patient_id` is `null` for tenant-scoped corpora. `pmid` values are strings.
+
+**List** — `GET /literature/corpora` returns `{"corpora": [ … ]}` with the corpus object minus `articles` (each entry keeps `article_count`). Without `patient_id`: tenant-scoped corpora only. With `?patient_id=…` (consent-gated): that patient's corpora in addition to tenant-scoped ones.
+
+**Detail** — `GET /literature/corpora/{corpus_id}` returns the corpus object including `articles`. Unknown or cross-tenant ids → `404`.
+
+### Evidence Table
+
+```text
+POST /literature/evidence-table
+```
+
+Structured evidence table for a question over a saved corpus or a direct PMID list, with **strict citations**.
+
+**Request:**
+
+```json
+{
+  "question": "Do ACE inhibitors reduce blood pressure?",
+  "corpus_id": 42
+}
+```
+
+Provide **exactly one** of `corpus_id` (int) or `pmids` (string[]); both or neither → `422`. `question` is required. When `corpus_id` points at a patient-scoped corpus, the `ai_insights` consent gate applies.
+
+**Response:**
+
+```json
+{
+  "question": "Do ACE inhibitors reduce blood pressure?",
+  "rows": [
+    {
+      "claim": "…",
+      "supporting_pmids": ["30000001"],
+      "effect_direction": "supports",
+      "confidence": 0.7,
+      "citation": "J Clin Med 2021. PMID: 30000001"
+    }
+  ],
+  "generated_at": "2026-10-08T12:00:00+00:00"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rows[].claim` | string | Evidence statement (inline PMID markers stripped) |
+| `rows[].supporting_pmids` | string[] | ≥ 1 PMIDs belonging to the corpus/article set |
+| `rows[].effect_direction` | string | `supports`, `refutes`, or `mixed` |
+| `rows[].confidence` | number | 0.0–1.0 |
+| `rows[].citation` | string | Formatted citation — always includes `PMID: …` |
+
+**Strict-citation behavior:** every returned row carries at least one PMID belonging to the corpus/article set. Uncited claims and claims citing PMIDs outside the set are **dropped** — the response never contains an uncited claim. Rows are produced through the Deep Thinking synthesis path when available, with a deterministic PubMed-only fallback; the strict-citation filter applies either way. An article set that resolves empty → `422`.
 
 ---
 
