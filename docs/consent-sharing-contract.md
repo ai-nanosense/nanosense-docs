@@ -222,9 +222,9 @@ Tamar posts consent lifecycle events to hub `POST /consents` (endpoint owned by 
 
 ### 7.2 Option B — On-access delegation (pull at query time)
 
-No consent state is mirrored. Every hub query/ingest request carries a **Tamar-issued signed consent-proof token**; the hub verifies it at request time.
+Every patient-scoped hub query, ingest, FHIR Bundle ingest, and re-index request carries a **Tamar-issued signed authorization proof**. The hub verifies it against the current consent mirror. The implemented v1 claim schema, receipt fingerprint, tenant bindings, and denial rules are normative in [Tamar–NanoSense patient authorization v1](patient-rag-authorization-v1.md).
 
-**Consent-proof token payload (normative wire format, also the "proof format agreed with MED-002" referenced by TAM-001):**
+**Historical five-claim sketch (superseded by the v1 contract linked above):**
 
 ```json
 {
