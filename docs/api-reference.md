@@ -1,7 +1,7 @@
 # NanoSense Medical RAG API Reference
 
 **Base URL:** `https://api.nanosense.net` (production) | `http://localhost:8000` (local)
-**Version:** 3.0
+**Version:** 3.2
 **Interactive docs:** `https://api.nanosense.net/docs` (Swagger UI) | `https://api.nanosense.net/redoc` (ReDoc)
 
 ---
@@ -719,6 +719,335 @@ DELETE /tenants/{tenant_id}/analytics/reports/{report_id}
 
 ---
 
+## Knowledge Graph Insights
+
+Patient-scoped reads over the persisted per-patient knowledge graph (entities, relations, mention trends). Both endpoints are read-only projections over stored rows — extraction runs incrementally when data lands (CSV ingest, patient timeline reads), never at request time.
+
+**Consent:** these are patient-scoped reads and require a covering `ai_insights` grant (see [Consent & Data Sharing](#consent--data-sharing)), presented via [`X-Consent-Proof`](#x-consent-proof-patient-scoped-requests). Without one, the request is refused with `403` + [`X-Consent-Reason`](#403--x-consent-reason-semantics). A tenant-scoped JWT is required in all cases.
+
+### Get Patient Insights
+
+```text
+GET /kg/insights?patient_id=…
+```
+
+**Response:**
+
+```json
+{
+  "patient_id": "patient-123",
+  "generated_at": "2026-10-08T12:00:00+00:00",
+  "entities": [
+    {"id": "e-1", "type": "condition", "label": "Hypertension", "mentions": 7, "first_seen": "2026-05-02T09:14:00+00:00", "last_seen": "2026-10-01T16:20:00+00:00"}
+  ],
+  "relations": [
+    {"source_id": "e-2", "target_id": "e-1", "type": "treats", "evidence_count": 3}
+  ],
+  "trends": [
+    {"entity_id": "e-1", "label": "Hypertension", "direction": "rising", "window_days": 90}
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `patient_id` | string | Echo of the requested patient |
+| `generated_at` | string (ISO 8601) | Projection timestamp |
+| `entities[]` | object[] | `id` (string), `type` (enum below), `label` (string), `mentions` (int, accumulated across refreshes), `first_seen` / `last_seen` (ISO 8601) |
+| `relations[]` | object[] | `source_id` / `target_id` (entity ids), `type` (enum below), `evidence_count` (int ≥ 1) |
+| `trends[]` | object[] | One entry per entity (same length as `entities[]`): `entity_id`, `label`, `direction` (enum below), `window_days` (int — always `90`) |
+
+**Enums (closed vocabularies):**
+
+| Vocabulary | Values |
+|------------|--------|
+| `entities[].type` (also `nodes[].type`) | `condition`, `medication`, `procedure`, `observation`, `anatomy` |
+| `relations[].type` (also `links[].relationship`) | `treats`, `causes`, `interacts_with`, `part_of`, `associated_with` |
+| `trends[].direction` | `rising`, `falling`, `stable` |
+
+Trends are mention velocity over the trailing 90 days, split into two halves: more mentions in the recent half → `rising`, fewer → `falling`, equal (or none in the window) → `stable`.
+
+### Get Graph (visualization payload)
+
+```text
+GET /kg/insights/graph?patient_id=…
+```
+
+`{nodes, links}` payload for the Knowledge Graph visualizer. Node ids are the same persisted entity ids as `/kg/insights`, so the two responses can be joined directly.
+
+**Response:**
+
+```json
+{
+  "nodes": [
+    {"id": "e-1", "label": "Hypertension", "type": "condition", "color": "#c0392b", "centrality": 0.42, "size": 28, "is_hub": true}
+  ],
+  "links": [
+    {"source": "e-2", "target": "e-1", "label": "treats", "relationship": "treats", "evidence_count": 3}
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nodes[]` | object[] | `id`, `label`, `type` (entity enum above), `color` (the visualizer's palette color for `type`; unknown types get the palette's `unknown` entry), `centrality` (float), `size` (number), `is_hub` (bool) |
+| `links[]` | object[] | `source` / `target` (node ids), `label` (the relationship rendered with spaces, e.g. `interacts with`), `relationship` (relation enum above), `evidence_count` (int ≥ 1) |
+
+Relations whose endpoints are not both present as nodes are omitted from `links`.
+
+---
+
+## Lab Analytics
+
+Analytics over the ingested EHR observation store — there is no separate lab store, so every figure derives from ingested observations (LOINC code, numeric value, collection timestamp). `days` selects the window on all three endpoints: default `365`, allowed `1`–`3650`.
+
+**Consent:** `/trends` and `/summary` are patient-scoped reads and require a covering `lab_results` grant (see [Consent & Data Sharing](#consent--data-sharing), [`X-Consent-Proof`](#x-consent-proof-patient-scoped-requests)); without one the request is refused with `403` + [`X-Consent-Reason`](#403--x-consent-reason-semantics). `/population` is tenant-scoped only (JWT tenant) and requires no patient consent grant — it releases de-identified tenant aggregates only.
+
+### Lab Trends
+
+```text
+GET /analytics/labs/trends?patient_id=…&loinc_code=…&days=…
+```
+
+Time series plus summary for one analyte of one patient.
+
+**Response:**
+
+```json
+{
+  "patient_id": "patient-123",
+  "loinc_code": "2345-7",
+  "unit": "mg/dL",
+  "series": [
+    {"date": "2026-09-01", "value": 95.0, "flag": "normal"},
+    {"date": "2026-10-01", "value": 110.0, "flag": "high"}
+  ],
+  "summary": {"latest": 110.0, "min": 95.0, "max": 110.0, "count": 2, "trend": "rising"}
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `unit` | string \| null | Unit of the most recent observation carrying one; `null` if none |
+| `series[].date` | string | Collection date (date part of the collection timestamp, ISO) |
+| `series[].value` | number | Observation value |
+| `series[].flag` | string | `low`, `normal`, or `high` (flag rules below) |
+| `summary` | object | `latest`, `min`, `max` (numbers; `null` when the series is empty), `count` (int), `trend` (rules below) |
+
+**Flag rules (`low` | `normal` | `high`):** each value is compared against a standard adult reference range for its LOINC code. A value inside the range — and any analyte with no known reference range — is flagged `normal` (never falsely abnormal). Ranges are applied to the stored unit; no unit conversion is performed.
+
+**Trend rules (`rising` | `falling` | `stable`):** for two or more values ordered by collection time, the mean of the recent half of the series is compared against the mean of the earlier half: more than +5 % → `rising`, less than −5 % → `falling`, otherwise `stable`. Fewer than two values → `stable`.
+
+### Lab Summary
+
+```text
+GET /analytics/labs/summary?patient_id=…&days=…
+```
+
+Latest result per analyte in the window.
+
+**Response:**
+
+```json
+{
+  "patient_id": "patient-123",
+  "panels": [
+    {
+      "loinc_code": "2345-7",
+      "name": "Blood glucose",
+      "latest_value": 110.0,
+      "unit": "mg/dL",
+      "flag": "high",
+      "collected_at": "2026-10-01T09:30:00+00:00",
+      "delta_prev": 15.0
+    }
+  ]
+}
+```
+
+One entry per analyte with data in the window. `name` is the observation's display name (falls back to the LOINC code), `flag` follows the flag rules above, `collected_at` is the collection timestamp of the latest result (ISO 8601), and `delta_prev` is `latest_value` minus the previous value for that analyte (`null` when only one value exists in the window).
+
+### Population Aggregates
+
+```text
+GET /analytics/labs/population?loinc_code=…&days=…
+```
+
+**De-identified tenant aggregates** for one analyte. The query projects aggregate columns only — no patient identifier and no per-patient row is ever returned. Tenant-scoped JWT only; no patient consent grant is required because nothing patient-scoped is released.
+
+**Response:**
+
+```json
+{
+  "loinc_code": "2345-7",
+  "n": 42,
+  "mean": 103.4,
+  "p50": 99.0,
+  "p90": 127.2,
+  "abnormal_ratio": 0.19
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `n` | int | Observation count in the window |
+| `mean`, `p50`, `p90` | number \| null | Mean and percentiles; `null` when `n` is 0 |
+| `abnormal_ratio` | number \| null | Share of values outside the known reference range; `null` when `n` is 0. Analytes without a known range never count as abnormal |
+
+---
+
+## Literature Mining
+
+PubMed-grounded research tooling: multi-query batch search, saved corpora, and structured evidence tables with strict PMID citations. All routes require a tenant-scoped JWT. Patient-scoped corpora (on save and on read) additionally require a covering `ai_insights` grant — presented via [`X-Consent-Proof`](#x-consent-proof-patient-scoped-requests) — and are refused with `403` + [`X-Consent-Reason`](#403--x-consent-reason-semantics) otherwise (`research` is a reserved scope: legal on receipts but deny-by-default on data release). Cross-tenant reads are denied on save and read: a foreign `corpus_id` is indistinguishable from a missing one (`404`).
+
+### Batch Search
+
+```text
+POST /literature/search
+```
+
+Batch PubMed search across multiple queries with per-query grouped, paginated results.
+
+**Request:**
+
+```json
+{
+  "queries": ["hypertension treatment", "beta blockers"],
+  "max_results": 5,
+  "page": 1
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `queries` | string[] | ≥ 1 non-empty PubMed queries |
+| `max_results` | int | Page size per query (1–50, default 5) |
+| `page` | int | 1-based page within each query (default 1) |
+
+**Response:**
+
+```json
+{
+  "page": 1,
+  "max_results": 5,
+  "queries": [
+    {
+      "query": "hypertension treatment",
+      "page": 1,
+      "page_size": 5,
+      "total": 128,
+      "results": [
+        {"pmid": "30000001", "title": "…", "journal": "J Clin Med", "year": "2021", "authors": "…", "abstract_snippet": "…", "query": "hypertension treatment"}
+      ]
+    }
+  ]
+}
+```
+
+`total` is the PubMed hit count for that query; `results` holds at most `page_size` rows in relevance order. Each result row carries `pmid`, `title`, `journal`, `year`, `authors`, `abstract_snippet`, and `query` (the query that produced the row).
+
+### Saved Corpora
+
+```text
+POST /literature/corpora              — save a corpus
+GET  /literature/corpora              — list saved corpora
+GET  /literature/corpora/{corpus_id}  — corpus detail (articles included)
+```
+
+**Create** — `POST /literature/corpora`:
+
+```json
+{
+  "name": "HTN first-line therapy",
+  "scope": "patient",
+  "patient_id": "patient-123",
+  "pmids": ["30000001", "30000002"]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | 1–255 characters |
+| `scope` | string | `patient` or `tenant` |
+| `patient_id` | string | Required for `scope: "patient"` (consent-gated); ignored for `scope: "tenant"` (stored as `null`) |
+| `pmids` | string[] | ≥ 1 PMID; normalized to unique, order-preserving strings |
+
+Article metadata (`title`, `journal`, `year`, `authors`, `abstract`) is snapshotted from PubMed at save time (best effort — PMIDs PubMed does not resolve still save, with empty metadata fields).
+
+**Corpus object** — create and detail responses:
+
+```json
+{
+  "corpus_id": 42,
+  "tenant_id": "tenant-1",
+  "name": "HTN first-line therapy",
+  "scope": "patient",
+  "patient_id": "patient-123",
+  "created_by": "user-7",
+  "created_at": "2026-10-08T12:00:00+00:00",
+  "updated_at": "2026-10-08T12:00:00+00:00",
+  "article_count": 2,
+  "articles": [
+    {"corpus_id": 42, "pmid": "30000001", "title": "…", "journal": "…", "year": "2021", "authors": "…", "abstract": "…", "added_at": "2026-10-08T12:00:00+00:00"}
+  ]
+}
+```
+
+`articles` is present on create and detail only; `article_count` is always present. `patient_id` is `null` for tenant-scoped corpora. `pmid` values are strings.
+
+**List** — `GET /literature/corpora` returns `{"corpora": [ … ]}` with the corpus object minus `articles` (each entry keeps `article_count`). Without `patient_id`: tenant-scoped corpora only. With `?patient_id=…` (consent-gated): that patient's corpora in addition to tenant-scoped ones.
+
+**Detail** — `GET /literature/corpora/{corpus_id}` returns the corpus object including `articles`. Unknown or cross-tenant ids → `404`.
+
+### Evidence Table
+
+```text
+POST /literature/evidence-table
+```
+
+Structured evidence table for a question over a saved corpus or a direct PMID list, with **strict citations**.
+
+**Request:**
+
+```json
+{
+  "question": "Do ACE inhibitors reduce blood pressure?",
+  "corpus_id": 42
+}
+```
+
+Provide **exactly one** of `corpus_id` (int) or `pmids` (string[]); both or neither → `422`. `question` is required. When `corpus_id` points at a patient-scoped corpus, the `ai_insights` consent gate applies.
+
+**Response:**
+
+```json
+{
+  "question": "Do ACE inhibitors reduce blood pressure?",
+  "rows": [
+    {
+      "claim": "…",
+      "supporting_pmids": ["30000001"],
+      "effect_direction": "supports",
+      "confidence": 0.7,
+      "citation": "J Clin Med 2021. PMID: 30000001"
+    }
+  ],
+  "generated_at": "2026-10-08T12:00:00+00:00"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rows[].claim` | string | Evidence statement (inline PMID markers stripped) |
+| `rows[].supporting_pmids` | string[] | ≥ 1 PMIDs belonging to the corpus/article set |
+| `rows[].effect_direction` | string | `supports`, `refutes`, or `mixed` |
+| `rows[].confidence` | number | 0.0–1.0 |
+| `rows[].citation` | string | Formatted citation — always includes `PMID: …` |
+
+**Strict-citation behavior:** every returned row carries at least one PMID belonging to the corpus/article set. Uncited claims and claims citing PMIDs outside the set are **dropped** — the response never contains an uncited claim. Rows are produced through the Deep Thinking synthesis path when available, with a deterministic PubMed-only fallback; the strict-citation filter applies either way. An article set that resolves empty → `422`.
+
+---
+
 ## FHIR R4 API
 
 All FHIR endpoints are tenant-scoped via row-level security.
@@ -783,6 +1112,8 @@ All clinical resource endpoints follow the same pattern:
 | DiagnosticReport | `GET /fhir/DiagnosticReport` | `subject`, `status`, `_count`, `_offset` |
 
 Each resource also supports read by ID: `GET /fhir/{ResourceType}/{id}`
+
+> **Stub read-back:** `AllergyIntolerance` is declared but not yet readable — `GET /fhir/AllergyIntolerance` currently returns an empty Bundle. Allergies are ingested, persisted, and RAG-queryable; full FHIR read-back is a known limit (see [CSV Ingest Guide — Known Limits](csv-ingest.md#known-limits)).
 
 ---
 
@@ -1201,6 +1532,112 @@ Authenticated via HMAC-SHA256 signature in `X-Telemedicine-Signature` header. Fo
 
 ---
 
+## Consent & Data Sharing
+
+Patient-controlled consent and data sharing (implementation of the [Consent & Sharing Contract (v1)](consent-sharing-contract.md)). All routes are tenant-scoped: writes require a tenant-scoped token and may only target the caller's own tenant unless the caller is `admin`/`service`.
+
+**Vocabulary** (enforced server-side; unknown values → `422`):
+
+| Field | Allowed values |
+|-------|----------------|
+| `scopes[]` | `summary`, `treatment_history`, `lab_results`, `ai_insights`, `imaging`, `research` — `imaging`/`research` are reserved: legal on receipts but deny-by-default on data release |
+| `channel` | `app`, `web`, `otp`, `provider_invite`, `admin` |
+| `purposes[]` | Platform purpose vocabulary, e.g. `healthcare_service_delivery`, `third_party_referral` (min 1) |
+
+### Consent Receipts (CRUD)
+
+```text
+POST /consents                      — create a grant (direct) or receive a partner event
+POST /consents/webhook              — partner webhook alias (envelope only)
+GET  /consents?patient_id=…         — list a patient's receipts (optional recipient_id filter)
+POST /consents/{receipt_id}/revoke  — terminal revoke (idempotent)
+```
+
+**Direct grant** — `POST /consents` with a JWT or API key and a ConsentReceipt body:
+
+```json
+{
+  "patient_id": "fhir-patient-ref",
+  "purposes": ["healthcare_service_delivery"],
+  "scopes": ["summary", "lab_results"],
+  "granted_to": {
+    "principal_id": "recipient-principal",
+    "role": "doctor",
+    "institution": {"tenant_id": "…", "org_name": "…"}
+  },
+  "channel": "web",
+  "granted_at": "2026-10-01T09:00:00Z",
+  "expires_at": "2026-12-31T23:59:59Z"
+}
+```
+
+`granted_at`, `expires_at`, `revoked_at` (wire parity — always null on grant), `receipt_id`, and `event_id` are optional. Grants are content-idempotent: an identical active grant returns the same `receipt_id` without appending a second event (`201` on create, `200` on replay). Response: `{"result": …, "receipt": …}` with a derived `status` of `active` or `revoked`.
+
+**Revoke** — `POST /consents/{receipt_id}/revoke` (optional body `{"revoked_at": …, "reason": …}`). Terminal and idempotent; the only permitted receipt mutation is setting `revoked_at`. Recipients cannot revoke their own grant (`403`). Revocation purges the patient's query-cache entries in the background; clinical source records remain retained.
+
+### External provider invites (cross-institution)
+
+Scoped, expiring, **single-use** invite links for sharing with providers outside your institution. Redemption mints a scoped external grant and emits FHIR R4 `Consent` + `Provenance`.
+
+```text
+POST /consents/external-invites          — issue a single-use invite token
+POST /consents/external-invites/redeem   — redeem it (authenticated caller, any tenant)
+GET  /consents/external-invites/{jti}    — invite status + emitted FHIR Consent/Provenance
+```
+
+**Issue** — dual auth: partner HMAC signature (see **Partner HMAC webhook** below) or JWT/API key. Body: `patient_id`, `recipient_id`, `scopes[]`, optional `recipient_name`, `recipient_org`, `exp`, `jti`, `tenant_id`. Token claims are exactly `patient_id`, `recipient_id`, `scopes`, `exp`, `jti`. TTL is 72 hours (both default and hard cap); `jti`/`exp` may be hub-overridden — store the returned values. Idempotent by `jti` (`201` on create, `200` on replay). Response includes `token`, `jti`, `exp`, `expires_at`, `status`, `receipt_id`, `fhir.consent`/`fhir.provenance`, and — when `EXTERNAL_INVITE_SHARE_URL_BASE` is configured — ready-made `invite_url`/`redeem_url`.
+
+**Redeem** — body `{"token": "…"}`. Single-use: reuse fails with `409` (`invite_token_reused`), expiry with `410`, prior revocation with `409`. Success returns `{"status": "active", "jti", "receipt_id", "redeemed_at", "receipt", "fhir": {"consent", "provenance"}}`.
+
+### Partner HMAC webhook (consent events)
+
+Partner systems (e.g. Tamar) propagate consent changes as signed event envelopes to `POST /consents` or `POST /consents/webhook`:
+
+```json
+{"id": "evt-…", "type": "consent.granted", "data": {…}, "partner_id": "tamar"}
+```
+
+`type` is one of `consent.granted`, `consent.updated`, `consent.revoked`, `consent.expired`. Authentication: `X-Partner-Signature: t=<unix-timestamp>,v1=<hmac-sha256-hex>` computed over `"<timestamp>.<raw-body>"` (5-minute timestamp tolerance; per-partner secrets in `PARTNER_WEBHOOK_SECRETS` with `TELEMEDICINE_WEBHOOK_SECRET` fallback; `*_ALLOW_UNSIGNED` for local dev only). Envelopes are idempotent by envelope `id`. On `consent.revoked`, the patient's query-cache entries are purged. The hub also sends a best-effort partner-signed `external_invite.redeemed` notification to Tamar after a successful redeem.
+
+### X-Consent-Proof (patient-scoped requests)
+
+Every patient-scoped query, document ingestion, FHIR Bundle ingestion, and re-index request must carry an `X-Consent-Proof` header — an HS256 JWT signed with a dedicated `CONSENT_PROOF_SECRET` (never reuse the application JWT secret). An API key authenticates the service; it cannot authorize patient records. Required claims (see [patient-rag-authorization-v1.md](patient-rag-authorization-v1.md) for bindings and fingerprint rules):
+
+| Claim | Requirement |
+|-------|-------------|
+| `v`, `iss`, `aud` | `1`, `tamar`, `nanosense-rag` |
+| `tenant_id`, `rag_tenant_id` | Tamar tenant and mapped RAG tenant — `rag_tenant_id` must match the authenticated tenant |
+| `patient_id` | FHIR patient reference |
+| `recipient_id`, `recipient_role`, `recipient_tenant_id` | Actor principal, role, and tenant |
+| `operation` | `query`, `ingest`, `fhir_ingest`, or `reindex` — must match the route |
+| `purpose` | `healthcare_service_delivery` |
+| `scopes` | Nonempty subset of `summary`, `treatment_history`, `lab_results`, `ai_insights` |
+| `consent_version`, `grant_version` | Active receipt/grant fingerprints (grant `null` for self/authorized direct care) |
+| `iat`, `exp` | Epoch seconds; lifetime 1–300 s; no future issue time |
+| `jti` | Request trace identifier |
+
+The hub re-checks the consent mirror on every patient request — before retrieving cached answers or writing records — and independently requires active patient clinical consent plus, where applicable, an active recipient grant. Revoked, expired, stale-version, mismatched, or over-scoped proofs are denied; denied ingestion writes nothing.
+
+### 403 + `X-Consent-Reason` semantics
+
+Consent denials return `403` with an `X-Consent-Reason` header naming the failed check (denials never trigger clinical fallback):
+
+| `X-Consent-Reason` | Meaning |
+|--------------------|---------|
+| `missing_proof` | No `X-Consent-Proof` on a patient-scoped request |
+| `invalid_proof` | Bad signature, claims, or timestamps; proof not short-lived |
+| `proof_patient_mismatch` | Proof patient ≠ requested patient |
+| `proof_tenant_mismatch` | Proof tenant ≠ authenticated tenant |
+| `proof_recipient_mismatch` | Proof recipient ≠ caller |
+| `scope_mismatch` | Proof scopes invalid, or grant does not cover the requested scopes |
+| `scope_unsupported` | Patient-scoped mode cannot enforce record scopes (only `rag_cag` is supported patient-scoped) |
+| `reserved_scope` | Reserved scope (`imaging`/`research`) requested — grants no retrievable data |
+| `no_active_grant` | No active consent grant for this patient |
+| `revoked` | Governing grant was revoked |
+| `expired` | Governing grant has expired |
+
+Invite-token failures use the same header with distinct values and status codes: `invalid_invite_token` (`403`), `invite_token_mismatch` (`403`), `invite_token_reused` (`409`), `invite_revoked` (`409`), `invite_token_expired` (`410`), `unknown_jti` (`404`). A `503` with `X-Consent-Reason: consent_unavailable` indicates the consent mirror is unreachable — requests fail closed.
+
 ## Quickstart Example
 
 Register, log in, and run your first query in three API calls:
@@ -1246,7 +1683,9 @@ curl https://api.nanosense.net/billing/usage \
 
 ### FHIR Resource Support
 
-Fully supported (read + search + ingest): Patient, Encounter, Condition, MedicationRequest, Procedure, Observation, Immunization, AllergyIntolerance, ImagingStudy, DiagnosticReport.
+Fully supported (read + search + ingest): Patient, Encounter, Condition, MedicationRequest, Procedure, Observation, Immunization, ImagingStudy, DiagnosticReport.
+
+Ingest + RAG-queryable only (FHIR read/search returns an empty Bundle until the read route lands — see [CSV Ingest Guide — Known Limits](csv-ingest.md#known-limits)): AllergyIntolerance.
 
 Declared in CapabilityStatement (stub): CarePlan, CareTeam, Device, DocumentReference, Goal, Location, Medication, Organization, Practitioner, PractitionerRole, Provenance, RelatedPerson, ServiceRequest.
 
