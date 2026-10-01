@@ -723,13 +723,27 @@ DELETE /tenants/{tenant_id}/analytics/reports/{report_id}
 
 Patient-scoped reads over the persisted per-patient knowledge graph (entities, relations, mention trends). Both endpoints are read-only projections over stored rows — extraction runs incrementally when data lands (CSV ingest, patient timeline reads), never at request time.
 
-**Consent:** these are patient-scoped reads and require a covering `ai_insights` grant (see [Consent & Data Sharing](#consent--data-sharing)), presented via [`X-Consent-Proof`](#x-consent-proof-patient-scoped-requests). Without one, the request is refused with `403` + [`X-Consent-Reason`](#403--x-consent-reason-semantics). A tenant-scoped JWT is required in all cases.
+**Patient identifiers (MED-009):** the **preferred request contract is `POST` with a JSON body** — patient identifiers must not travel in URLs. Query strings leak into proxy/access logs, CDN logs, and browser history, so the `GET` query-parameter forms below are **deprecated** and kept for compatibility only (removal tracked by MED-009).
+
+**Consent:** these are patient-scoped reads and require a covering `ai_insights` grant (see [Consent & Data Sharing](#consent--data-sharing)), presented via [`X-Consent-Proof`](#x-consent-proof-patient-scoped-requests). Without one, the request is refused with `403` + [`X-Consent-Reason`](#403--x-consent-reason-semantics). A tenant-scoped JWT is required in all cases. The same consent enforcement applies to both verbs.
 
 ### Get Patient Insights
 
 ```text
-GET /kg/insights?patient_id=…
+POST /kg/insights
 ```
+
+**Request (preferred — the patient reference travels in the JSON body, never in the URL):**
+
+```json
+{
+  "patient_id": "patient-123"
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `patient_id` | string | Patient identifier (required) |
 
 **Response:**
 
@@ -767,10 +781,20 @@ GET /kg/insights?patient_id=…
 
 Trends are mention velocity over the trailing 90 days, split into two halves: more mentions in the recent half → `rising`, fewer → `falling`, equal (or none in the window) → `stable`.
 
+> **Deprecated — `GET /kg/insights?patient_id=…`:** the query-parameter form still returns the identical payload, but is **deprecated** because the patient identifier in the URL leaks into proxy/access logs. Deprecated responses carry a `Deprecation: true` header; removal is tracked by MED-009. New integrations must use `POST` with the JSON body above.
+
 ### Get Graph (visualization payload)
 
 ```text
-GET /kg/insights/graph?patient_id=…
+POST /kg/insights/graph
+```
+
+**Request (preferred — the patient reference travels in the JSON body, never in the URL):**
+
+```json
+{
+  "patient_id": "patient-123"
+}
 ```
 
 `{nodes, links}` payload for the Knowledge Graph visualizer. Node ids are the same persisted entity ids as `/kg/insights`, so the two responses can be joined directly.
@@ -795,19 +819,39 @@ GET /kg/insights/graph?patient_id=…
 
 Relations whose endpoints are not both present as nodes are omitted from `links`.
 
+> **Deprecated — `GET /kg/insights/graph?patient_id=…`:** the query-parameter form still returns the identical payload, but is **deprecated** because the patient identifier in the URL leaks into proxy/access logs. Deprecated responses carry a `Deprecation: true` header; removal is tracked by MED-009. New integrations must use `POST` with the JSON body above.
+
 ---
 
 ## Lab Analytics
 
 Analytics over the ingested EHR observation store — there is no separate lab store, so every figure derives from ingested observations (LOINC code, numeric value, collection timestamp). `days` selects the window on all three endpoints: default `365`, allowed `1`–`3650`.
 
-**Consent:** `/trends` and `/summary` are patient-scoped reads and require a covering `lab_results` grant (see [Consent & Data Sharing](#consent--data-sharing), [`X-Consent-Proof`](#x-consent-proof-patient-scoped-requests)); without one the request is refused with `403` + [`X-Consent-Reason`](#403--x-consent-reason-semantics). `/population` is tenant-scoped only (JWT tenant) and requires no patient consent grant — it releases de-identified tenant aggregates only.
+**Patient identifiers (MED-009):** for `/trends` and `/summary` the **preferred request contract is `POST` with a JSON body** — patient identifiers must not travel in URLs (query strings leak into proxy/access logs, CDN logs, and browser history). The `GET` query-parameter forms are **deprecated**, kept for compatibility only (removal tracked by MED-009). `/population` is de-identified and carries no patient identifier, so its `GET` contract is unchanged.
+
+**Consent:** `/trends` and `/summary` are patient-scoped reads and require a covering `lab_results` grant (see [Consent & Data Sharing](#consent--data-sharing), [`X-Consent-Proof`](#x-consent-proof-patient-scoped-requests)); without one the request is refused with `403` + [`X-Consent-Reason`](#403--x-consent-reason-semantics) on both verbs. `/population` is tenant-scoped only (JWT tenant) and requires no patient consent grant — it releases de-identified tenant aggregates only.
 
 ### Lab Trends
 
 ```text
-GET /analytics/labs/trends?patient_id=…&loinc_code=…&days=…
+POST /analytics/labs/trends
 ```
+
+**Request (preferred — the patient reference travels in the JSON body, never in the URL):**
+
+```json
+{
+  "patient_id": "patient-123",
+  "loinc_code": "2345-7",
+  "days": 365
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `patient_id` | string | Patient identifier (required) |
+| `loinc_code` | string | LOINC code of the analyte (required) |
+| `days` | int | Window in days; default `365`, allowed `1`–`3650` |
 
 Time series plus summary for one analyte of one patient.
 
@@ -838,11 +882,27 @@ Time series plus summary for one analyte of one patient.
 
 **Trend rules (`rising` | `falling` | `stable`):** for two or more values ordered by collection time, the mean of the recent half of the series is compared against the mean of the earlier half: more than +5 % → `rising`, less than −5 % → `falling`, otherwise `stable`. Fewer than two values → `stable`.
 
+> **Deprecated — `GET /analytics/labs/trends?patient_id=…&loinc_code=…&days=…`:** the query-parameter form still returns the identical payload, but is **deprecated** because the patient identifier in the URL leaks into proxy/access logs. Deprecated responses carry a `Deprecation: true` header; removal is tracked by MED-009. New integrations must use `POST` with the JSON body above.
+
 ### Lab Summary
 
 ```text
-GET /analytics/labs/summary?patient_id=…&days=…
+POST /analytics/labs/summary
 ```
+
+**Request (preferred — the patient reference travels in the JSON body, never in the URL):**
+
+```json
+{
+  "patient_id": "patient-123",
+  "days": 365
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `patient_id` | string | Patient identifier (required) |
+| `days` | int | Window in days; default `365`, allowed `1`–`3650` |
 
 Latest result per analyte in the window.
 
@@ -866,6 +926,8 @@ Latest result per analyte in the window.
 ```
 
 One entry per analyte with data in the window. `name` is the observation's display name (falls back to the LOINC code), `flag` follows the flag rules above, `collected_at` is the collection timestamp of the latest result (ISO 8601), and `delta_prev` is `latest_value` minus the previous value for that analyte (`null` when only one value exists in the window).
+
+> **Deprecated — `GET /analytics/labs/summary?patient_id=…&days=…`:** the query-parameter form still returns the identical payload, but is **deprecated** because the patient identifier in the URL leaks into proxy/access logs. Deprecated responses carry a `Deprecation: true` header; removal is tracked by MED-009. New integrations must use `POST` with the JSON body above.
 
 ### Population Aggregates
 
