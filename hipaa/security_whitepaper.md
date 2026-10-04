@@ -1,6 +1,6 @@
 # SECURITY PRACTICES WHITEPAPER
 
-**MedIntelligent, Inc.**
+**NanoSense**
 **Version:** 1.0
 **Last Updated:** May 2026
 **Classification:** Customer-Facing — No Confidential Implementation Details
@@ -9,9 +9,9 @@
 
 ## Executive Summary
 
-MedIntelligent is a HIPAA-ready Clinical Decision Support (CDS) and Medical AI platform that processes Protected Health Information (PHI) on behalf of healthcare organizations. This document describes the administrative, physical, and technical safeguards MedIntelligent implements to protect the confidentiality, integrity, and availability of electronic PHI (ePHI), mapped to the HIPAA Security Rule (45 CFR Part 164, Subpart C).
+NanoSense is a HIPAA-ready Clinical Decision Support (CDS) and Medical AI platform that processes Protected Health Information (PHI) on behalf of healthcare organizations. This document describes the administrative, physical, and technical safeguards NanoSense implements to protect the confidentiality, integrity, and availability of electronic PHI (ePHI), mapped to the HIPAA Security Rule (45 CFR Part 164, Subpart C).
 
-MedIntelligent operates under a Business Associate Agreement (BAA) with each Covered Entity customer.
+NanoSense operates under a Business Associate Agreement (BAA) with each Covered Entity customer.
 
 ---
 
@@ -37,7 +37,7 @@ MedIntelligent operates under a Business Associate Agreement (BAA) with each Cov
 
 ## 1. Architecture Overview
 
-MedIntelligent runs on Amazon Web Services (AWS) in the US-East-1 region. The architecture follows a defense-in-depth model with multiple security boundaries:
+NanoSense runs on Amazon Web Services (AWS) in the US-East-1 region. The architecture follows a defense-in-depth model with multiple security boundaries:
 
 ```
 Internet
@@ -99,7 +99,7 @@ Beyond storage-level encryption, individual sensitive fields (e.g., SSN) are enc
 
 ### 3.1 Authentication Schemes
 
-MedIntelligent supports two authentication methods:
+NanoSense supports two authentication methods:
 
 **JWT Bearer Tokens:**
 - Algorithm: HMAC-SHA256 (HS256)
@@ -160,7 +160,7 @@ Additional per-endpoint limits protect sensitive operations (login: 10/min, part
 
 ## 4. Tenant Isolation
 
-MedIntelligent is a multi-tenant platform. Every tenant's data is logically isolated at the database level using PostgreSQL Row-Level Security (RLS).
+NanoSense is a multi-tenant platform. Every tenant's data is logically isolated at the database level using PostgreSQL Row-Level Security (RLS).
 
 ### How RLS Works
 
@@ -184,7 +184,7 @@ Administrators can suspend a tenant (`POST /admin/tenants/{id}/suspend`), which:
 
 ## 5. Audit Logging
 
-MedIntelligent maintains three layers of audit logging:
+NanoSense maintains three layers of audit logging:
 
 ### 5.1 API Audit Log
 
@@ -290,7 +290,7 @@ Cross-Origin Resource Sharing is restricted to explicitly configured origins. Th
 
 ## 8. Data Retention and Disposal
 
-MedIntelligent maintains a formal Data Retention and Disposal Policy (see `hipaa/data_retention_policy.md`). Key provisions:
+NanoSense maintains a formal Data Retention and Disposal Policy (see `hipaa/data_retention_policy.md`). Key provisions:
 
 | Data Category | Retention Period | Disposal Method |
 |---|---|---|
@@ -317,7 +317,7 @@ Upon subscription termination, tenants may request data return (FHIR R4 Bundle e
 
 ## 9. Incident Response
 
-MedIntelligent maintains a formal Incident Response Plan (see `hipaa/incident_response_plan.md`) with seven phases:
+NanoSense maintains a formal Incident Response Plan (see `hipaa/incident_response_plan.md`) with seven phases:
 
 1. **Detection and Triage** — alerts from SLA monitoring, audit log anomalies, AWS GuardDuty, CloudTrail, and external reports
 2. **Containment** — API key revocation, tenant suspension, credential rotation, VPC isolation
@@ -397,7 +397,7 @@ Prometheus-compatible gauges enable integration with existing monitoring infrast
 
 ## 12. Subprocessors
 
-MedIntelligent uses the following subprocessors that may process or transmit data:
+NanoSense uses the following subprocessors that may process or transmit data:
 
 | Subprocessor | Purpose | PHI Access | Location | BAA/DPA |
 |---|---|---|---|---|
@@ -413,7 +413,7 @@ Customers are notified of subprocessor changes per the BAA. LLM providers are co
 
 ### 13.1 Automated Compliance Tools
 
-MedIntelligent provides built-in compliance validation tooling. Current status of each item:
+NanoSense provides built-in compliance validation tooling. Current status of each item:
 
 | Tool | Purpose | Command | Status |
 |---|---|---|---|
@@ -431,7 +431,7 @@ MedIntelligent provides built-in compliance validation tooling. Current status o
 | Security Awareness Training | 164.308(a)(5) | Customer responsibility |
 | Security Incident Procedures | 164.308(a)(6) | Implemented (incident response plan) |
 | Contingency Plan | 164.308(a)(7) | Implemented (RDS backups, Multi-AZ) |
-| Facility Access Controls | 164.310(a) | Inherited from AWS (covered by AWS's own SOC 2 and ISO 27001 attestations). MedIntelligent SOC 2 Type II: **In Progress — anticipated completion Q4 2026** (not yet attained) |
+| Facility Access Controls | 164.310(a) | Inherited from AWS (covered by AWS's own SOC 2 and ISO 27001 attestations). NanoSense SOC 2 Type II: **In Progress — anticipated completion Q4 2026** (not yet attained) |
 | Workstation Security | 164.310(b)-(c) | Customer responsibility |
 | Access Control | 164.312(a) | Implemented (JWT, API keys, RBAC, RLS) |
 | Audit Controls | 164.312(b) | Implemented (3-layer audit logging) |
@@ -453,7 +453,7 @@ Under the shared responsibility model, customers (Covered Entities) are responsi
 | **Workforce training** | Security awareness training for staff using the platform |
 | **Workstation security** | Endpoint protection on devices accessing the platform |
 | **Minimum necessary** | Submit only the PHI necessary for the intended query purpose |
-| **Breach notification** | Notify affected individuals (MedIntelligent provides data and templates) |
+| **Breach notification** | Notify affected individuals (NanoSense provides data and templates) |
 | **Notice of Privacy Practices** | Maintain and communicate NPP to patients |
 | **State-specific requirements** | Identify state retention or notification laws that exceed HIPAA minimums |
 
@@ -465,11 +465,11 @@ For security questions, vulnerability reports, or BAA requests:
 
 | Purpose | Contact |
 |---|---|
-| Security inquiries | security@medintelligent.ai |
-| Privacy Officer | privacy@medintelligent.ai |
-| BAA requests | legal@medintelligent.ai |
-| Vulnerability disclosure | security@medintelligent.ai (or responsible disclosure program) |
-| General support | support@medintelligent.ai |
+| Security inquiries | security@nanosense.net |
+| Privacy Officer | privacy@nanosense.net |
+| BAA requests | legal@nanosense.net |
+| Vulnerability disclosure | security@nanosense.net (or responsible disclosure program) |
+| General support | support@nanosense.net |
 
 ---
 
@@ -479,6 +479,3 @@ For security questions, vulnerability reports, or BAA requests:
 |---|---|---|
 | 1.0 | May 2026 | Initial publication |
 
----
-
-*This document is provided for informational purposes and describes MedIntelligent's current security practices. It does not constitute a legal guarantee or warranty. Security practices are subject to continuous improvement. Consult legal counsel for compliance questions specific to your organization. Last reviewed May 2026.*
