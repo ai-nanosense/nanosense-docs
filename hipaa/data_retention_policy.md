@@ -1,6 +1,6 @@
 # DATA RETENTION AND DISPOSAL POLICY
 
-**Policy Owner:** MedIntelligent, Inc.
+**Policy Owner:** NanoSense
 **Effective Date:** _______________
 **Last Reviewed:** May 2026
 **Review Cadence:** Annual (or upon material regulatory change)
@@ -10,7 +10,7 @@
 
 ## 1. PURPOSE
 
-This policy defines how MedIntelligent retains, archives, and disposes of data — including Protected Health Information (PHI) and electronic Protected Health Information (ePHI) — in compliance with HIPAA, HITECH, and applicable state retention laws. It applies to all data created, received, maintained, or transmitted by the MedIntelligent platform on behalf of Covered Entities.
+This policy defines how NanoSense retains, archives, and disposes of data — including Protected Health Information (PHI) and electronic Protected Health Information (ePHI) — in compliance with HIPAA, HITECH, and applicable state retention laws. It applies to all data created, received, maintained, or transmitted by the NanoSense platform on behalf of Covered Entities.
 
 ---
 
@@ -45,7 +45,7 @@ Data NOT in scope: Stripe payment records (retained by Stripe per their data pol
 | Immunizations | `immunizations` | 6 years | HIPAA 164.530(j) | Soft-delete |
 | Imaging metadata | `imaging_studies` | 7 years | ACR/CMS + 21 CFR Part 11 | Soft-delete |
 
-> **Note:** Some states require longer retention (e.g., 10 years in New York, 7 years in California). MedIntelligent applies the longer of the federal minimum or the Covered Entity's state requirement when specified in the Order Form.
+> **Note:** Some states require longer retention (e.g., 10 years in New York, 7 years in California). NanoSense applies the longer of the federal minimum or the Covered Entity's state requirement when specified in the Order Form.
 
 ### 3.2 Audit and Compliance Data
 
@@ -169,7 +169,7 @@ Enforcement processes rows in configurable batches (`RETENTION_BATCH_SIZE`, defa
 
 ## 7. LEGAL HOLDS
 
-When MedIntelligent is notified of pending litigation, regulatory investigation, or audit involving a specific tenant or time period:
+When NanoSense is notified of pending litigation, regulatory investigation, or audit involving a specific tenant or time period:
 
 1. A legal hold flag is set on the affected tenant or records
 2. The retention enforcer skips all flagged records regardless of retention period
@@ -194,7 +194,7 @@ Individual patient deletion requests (per 45 CFR 164.524) are processed as soft-
 
 ### 8.3 Accounting of Disclosures
 
-MedIntelligent maintains audit logs sufficient to produce an accounting of disclosures per 45 CFR 164.528. Requests are fulfilled within 30 days via the audit log export.
+NanoSense maintains audit logs sufficient to produce an accounting of disclosures per 45 CFR 164.528. Requests are fulfilled within 30 days via the audit log export.
 
 ---
 
@@ -237,6 +237,3 @@ This policy is reviewed annually by the Privacy Officer and Security Officer. Th
 | RDS Security Checker | `check_rds_security.py` (Planned — not yet shipped) |
 | PHI Utilities | `phi_utils.py` |
 
----
-
-*This policy is provided for informational purposes and does not constitute legal advice. Consult legal counsel to ensure compliance with all applicable federal, state, and local regulations. Last reviewed May 2026.*

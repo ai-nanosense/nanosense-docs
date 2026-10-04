@@ -1,6 +1,6 @@
 # SECURITY INCIDENT RESPONSE PLAN
 
-**Policy Owner:** MedIntelligent, Inc.
+**Policy Owner:** NanoSense
 **Effective Date:** _______________
 **Last Reviewed:** May 2026
 **Review Cadence:** Annual (and after every Severity 1 or 2 incident)
@@ -10,13 +10,13 @@
 
 ## 1. PURPOSE
 
-This plan establishes procedures for identifying, containing, investigating, and reporting security incidents — including breaches of Protected Health Information (PHI) — in compliance with the HIPAA Security Rule and Breach Notification Rule. It ensures MedIntelligent meets its obligations under its Business Associate Agreement (BAA), including the 72-hour security incident notification and 60-day breach notification commitments.
+This plan establishes procedures for identifying, containing, investigating, and reporting security incidents — including breaches of Protected Health Information (PHI) — in compliance with the HIPAA Security Rule and Breach Notification Rule. It ensures NanoSense meets its obligations under its Business Associate Agreement (BAA), including the 72-hour security incident notification and 60-day breach notification commitments.
 
 ---
 
 ## 2. SCOPE
 
-This plan applies to all systems, data, and personnel involved in the MedIntelligent platform, including:
+This plan applies to all systems, data, and personnel involved in the NanoSense platform, including:
 
 - Production infrastructure (AWS ECS, RDS, S3, CloudWatch)
 - Application code and APIs
@@ -142,7 +142,7 @@ The Security Officer is designated as the Incident Commander for all Severity 1 
 
 **PHI encryption assessment:**
 
-MedIntelligent stores PHI with the following protections. If the compromised data was subject to ALL of the following, it may qualify as *secured* PHI (not subject to breach notification):
+NanoSense stores PHI with the following protections. If the compromised data was subject to ALL of the following, it may qualify as *secured* PHI (not subject to breach notification):
 
 | Layer | Control | Reference |
 |---|---|---|
@@ -189,7 +189,7 @@ If the investigation reveals potential PHI exposure, the Security Officer and Pr
 
 **Timeline:** Within **60 calendar days** of discovery (45 CFR 164.404)
 
-MedIntelligent will assist the Covered Entity with:
+NanoSense will assist the Covered Entity with:
 
 - Identifying affected individuals (by `patient_id_hash` lookup with the CE's identifier mapping)
 - Drafting notification letters
@@ -273,12 +273,12 @@ Next update in [30/60] minutes.
 ### 7.2 Covered Entity Notification
 
 ```
-Subject: Security Incident Notification — MedIntelligent [INC-YYYY-NNN]
+Subject: Security Incident Notification — NanoSense [INC-YYYY-NNN]
 
 Dear [CE Privacy Officer],
 
 We are writing to notify you of a security incident that may affect
-Protected Health Information (PHI) processed by MedIntelligent on
+Protected Health Information (PHI) processed by NanoSense on
 behalf of [CE Name].
 
 Date of Discovery: [date]
@@ -304,7 +304,7 @@ Business Associate Agreement.
 
 Sincerely,
 [Security Officer Name]
-MedIntelligent, Inc.
+NanoSense
 ```
 
 ---
@@ -387,6 +387,3 @@ The incident register is retained for 6 years and is available for HHS inspectio
 | Privacy Officer | _________________ | _________________ | _________ |
 | Executive Sponsor | _________________ | _________________ | _________ |
 
----
-
-*This plan is provided for informational purposes and does not constitute legal advice. Consult legal counsel and qualified security professionals to ensure compliance with all applicable regulations. Last reviewed May 2026.*

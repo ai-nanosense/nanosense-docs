@@ -8,7 +8,7 @@
 Address: _______________________________________________________
 ("CE")
 
-**Business Associate:** MedIntelligent, Inc.
+**Business Associate:** NanoSense
 Address: _______________________________________________________
 ("BA")
 
@@ -64,7 +64,7 @@ BA may use or disclose PHI only to:
 
 BA shall implement administrative, physical, and technical safeguards that reasonably and appropriately protect the confidentiality, integrity, and availability of ePHI as required by the HIPAA Security Rule (45 C.F.R. Part 164, Subpart C), including:
 
-(a) **Encryption at Rest** — All ePHI stored by BA (databases, object storage, backups) shall be encrypted using AES-256 or equivalent. MedIntelligent uses AWS RDS with storage encryption (AES-256) and KMS-managed keys.
+(a) **Encryption at Rest** — All ePHI stored by BA (databases, object storage, backups) shall be encrypted using AES-256 or equivalent. NanoSense uses AWS RDS with storage encryption (AES-256) and KMS-managed keys.
 
 (b) **Encryption in Transit** — All ePHI transmitted between BA systems and CE or third parties shall use TLS 1.2 or higher.
 
@@ -78,7 +78,7 @@ BA shall implement administrative, physical, and technical safeguards that reaso
 
 BA shall ensure that any subcontractor or agent that creates, receives, maintains, or transmits PHI on behalf of BA agrees to the same restrictions and conditions that apply to BA under this Agreement, in accordance with 45 C.F.R. § 164.308(b)(2).
 
-Key subprocessors used by MedIntelligent:
+Key subprocessors used by NanoSense:
 | Subprocessor | Purpose | Location |
 |---|---|---|
 | Amazon Web Services (AWS) | Cloud infrastructure, RDS, ECS | US East 1 |
@@ -126,7 +126,7 @@ CE shall:
 
 ## 4. ON-PREMISES VPC DEPLOYMENT OPTION
 
-CE may elect to deploy the MedIntelligent platform within CE's own AWS Virtual Private Cloud ("CE VPC") under a separate Order Form. Under this option:
+CE may elect to deploy the NanoSense platform within CE's own AWS Virtual Private Cloud ("CE VPC") under a separate Order Form. Under this option:
 
 (a) **Data Residency** — All ePHI remains within CE's AWS account and region of choice;
 
@@ -178,14 +178,10 @@ Title: ______________________________________
 
 Organization: ______________________________
 
-**BUSINESS ASSOCIATE — MedIntelligent, Inc.**
+**BUSINESS ASSOCIATE — NanoSense**
 
 Signature: _________________________________ Date: ___________
 
 Name: _____________________________________
 
 Title: ______________________________________
-
----
-
-*This template is provided for informational purposes. Consult legal counsel before executing. Last reviewed against HIPAA Rules as amended through January 2025.*
