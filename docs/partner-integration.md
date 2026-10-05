@@ -219,9 +219,9 @@ For backend-to-backend integrations, use the SDK directly. The API key stays on 
 
 ```python
 import os
-from medintelligent import MedIntelligentClient
+from nanosense import NanoSenseClient
 
-client = MedIntelligentClient(
+client = NanoSenseClient(
     base_url=os.environ["NANOSENSE_BASE_URL"],
     api_key=os.environ["NANOSENSE_API_KEY"],
 )
@@ -235,9 +235,9 @@ print(resp.answer)
 ```
 
 ```ts
-import { MedIntelligentClient } from "@medintelligent/sdk";
+import { NanoSenseClient } from "@nanosense/client";
 
-const client = new MedIntelligentClient({
+const client = new NanoSenseClient({
   baseUrl: process.env.NANOSENSE_BASE_URL!,
   apiKey: process.env.NANOSENSE_API_KEY,
 });
