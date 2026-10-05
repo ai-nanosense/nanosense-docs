@@ -11,7 +11,7 @@ Client libraries for the NanoSense Medical RAG API.
 ### Python
 
 ```bash
-pip install medintelligent
+pip install nanosense
 ```
 
 Requires Python 3.10+. The SDK depends on `httpx`.
@@ -19,7 +19,7 @@ Requires Python 3.10+. The SDK depends on `httpx`.
 ### TypeScript / JavaScript
 
 ```bash
-npm install @medintelligent/sdk
+npm install @nanosense/client
 ```
 
 Requires Node.js 18+ or any modern browser runtime. The SDK uses the standard `fetch` API and has no required dependencies.
@@ -31,9 +31,9 @@ Requires Node.js 18+ or any modern browser runtime. The SDK uses the standard `f
 ### Python (API key auth)
 
 ```python
-from medintelligent import MedIntelligentClient
+from nanosense import NanoSenseClient
 
-client = MedIntelligentClient(
+client = NanoSenseClient(
     base_url="https://api.nanosense.net",
     api_key="mrag_your_key_here",
 )
@@ -46,9 +46,9 @@ print(f"Confidence: {resp.confidence_score}")
 ### TypeScript (API key auth)
 
 ```ts
-import { MedIntelligentClient } from "@medintelligent/sdk";
+import { NanoSenseClient } from "@nanosense/client";
 
-const client = new MedIntelligentClient({
+const client = new NanoSenseClient({
   baseUrl: "https://api.nanosense.net",
   apiKey: "mrag_your_key_here",
 });
@@ -70,7 +70,7 @@ Pass the `mrag_...` key obtained at tenant registration. The key is sent as `X-A
 
 **Python:**
 ```python
-client = MedIntelligentClient(
+client = NanoSenseClient(
     base_url="https://api.nanosense.net",
     api_key="mrag_your_key_here",
 )
@@ -78,7 +78,7 @@ client = MedIntelligentClient(
 
 **TypeScript:**
 ```ts
-const client = new MedIntelligentClient({
+const client = new NanoSenseClient({
   baseUrl: "https://api.nanosense.net",
   apiKey: "mrag_your_key_here",
 });
@@ -90,7 +90,7 @@ Suitable for interactive applications where users log in directly. Tokens expire
 
 **Python:**
 ```python
-client = MedIntelligentClient(base_url="https://api.nanosense.net")
+client = NanoSenseClient(base_url="https://api.nanosense.net")
 client.login(username="admin@clinic.com", password="s3cureP@ss!")
 # JWT is stored on the client and used automatically for subsequent calls
 resp = client.query("List active conditions for patient P042")
@@ -98,7 +98,7 @@ resp = client.query("List active conditions for patient P042")
 
 **TypeScript:**
 ```ts
-const client = new MedIntelligentClient({ baseUrl: "https://api.nanosense.net" });
+const client = new NanoSenseClient({ baseUrl: "https://api.nanosense.net" });
 await client.login({ username: "admin@clinic.com", password: "s3cureP@ss!" });
 const resp = await client.query({ question: "List active conditions for patient P042" });
 ```
@@ -117,9 +117,9 @@ The recommended pattern is to read credentials from environment variables rather
 **Python:**
 ```python
 import os
-from medintelligent import MedIntelligentClient
+from nanosense import NanoSenseClient
 
-client = MedIntelligentClient(
+client = NanoSenseClient(
     base_url=os.environ["NANOSENSE_BASE_URL"],
     api_key=os.environ["NANOSENSE_API_KEY"],
 )
@@ -127,7 +127,7 @@ client = MedIntelligentClient(
 
 **TypeScript:**
 ```ts
-const client = new MedIntelligentClient({
+const client = new NanoSenseClient({
   baseUrl: process.env.NANOSENSE_BASE_URL!,
   apiKey: process.env.NANOSENSE_API_KEY,
 });
@@ -137,12 +137,12 @@ const client = new MedIntelligentClient({
 
 ## Python SDK
 
-### `MedIntelligentClient`
+### `NanoSenseClient`
 
 Synchronous HTTP client. Uses `httpx.Client` internally. Supports context manager (`with` statement) for automatic cleanup.
 
 ```python
-MedIntelligentClient(
+NanoSenseClient(
     base_url: str,           # required — API base URL
     api_key: str | None,     # optional — mrag_... key
     timeout: float = 60.0,   # request timeout in seconds
@@ -152,16 +152,16 @@ MedIntelligentClient(
 #### Context Manager
 
 ```python
-with MedIntelligentClient(base_url="...", api_key="mrag_...") as client:
+with NanoSenseClient(base_url="...", api_key="mrag_...") as client:
     resp = client.query("What are the latest vitals for patient P007?")
 ```
 
-### `AsyncMedIntelligentClient`
+### `AsyncNanoSenseClient`
 
 Async client built on `httpx.AsyncClient`. Use with `async with` for cleanup.
 
 ```python
-AsyncMedIntelligentClient(
+AsyncNanoSenseClient(
     base_url: str,
     api_key: str | None,
     timeout: float = 60.0,
@@ -170,10 +170,10 @@ AsyncMedIntelligentClient(
 
 ```python
 import asyncio
-from medintelligent import AsyncMedIntelligentClient
+from nanosense import AsyncNanoSenseClient
 
 async def main():
-    async with AsyncMedIntelligentClient(
+    async with AsyncNanoSenseClient(
         base_url="https://api.nanosense.net",
         api_key="mrag_your_key_here",
     ) as client:
@@ -187,12 +187,12 @@ asyncio.run(main())
 
 ## TypeScript SDK
 
-### `MedIntelligentClient`
+### `NanoSenseClient`
 
 All methods return `Promise<T>`. Works in Node.js and modern browsers.
 
 ```ts
-new MedIntelligentClient({
+new NanoSenseClient({
   baseUrl: string,          // required — API base URL
   apiKey?: string,          // optional — mrag_... key
   timeoutMs?: number,       // default 60000 (60s)
@@ -476,13 +476,13 @@ Supported resource types: Patient, Encounter, Condition, MedicationRequest, Proc
 
 ## Error Handling
 
-Both SDKs raise typed exceptions for API errors. Catch the base `MedIntelligentError` for a catch-all, or specific subclasses for fine-grained handling.
+Both SDKs raise typed exceptions for API errors. Catch the base `NanoSenseError` for a catch-all, or specific subclasses for fine-grained handling.
 
 ### Python Exceptions
 
 | Exception | HTTP Status | When raised |
 |-----------|-------------|-------------|
-| `MedIntelligentError` | any | Base class for all SDK errors |
+| `NanoSenseError` | any | Base class for all SDK errors |
 | `AuthenticationError` | 401 | Missing or expired credentials |
 | `AuthorizationError` | 403 | Insufficient role or plan |
 | `NotFoundError` | 404 | Resource not found |
@@ -491,14 +491,14 @@ Both SDKs raise typed exceptions for API errors. Catch the base `MedIntelligentE
 | `ServerError` | 5xx | Internal server error |
 
 ```python
-from medintelligent import MedIntelligentClient
-from medintelligent.exceptions import (
+from nanosense import NanoSenseClient
+from nanosense.exceptions import (
     AuthorizationError,
     RateLimitError,
-    MedIntelligentError,
+    NanoSenseError,
 )
 
-client = MedIntelligentClient(
+client = NanoSenseClient(
     base_url="https://api.nanosense.net",
     api_key="mrag_your_key_here",
 )
@@ -509,7 +509,7 @@ except AuthorizationError:
     print("Deep mode not available on your plan. Upgrade to Professional.")
 except RateLimitError as e:
     print(f"Rate limited: {e.detail}")
-except MedIntelligentError as e:
+except NanoSenseError as e:
     print(f"API error {e.status_code}: {e.detail}")
 ```
 
@@ -517,7 +517,7 @@ except MedIntelligentError as e:
 
 | Error Class | HTTP Status | When raised |
 |-------------|-------------|-------------|
-| `MedIntelligentError` | any | Base class for all SDK errors |
+| `NanoSenseError` | any | Base class for all SDK errors |
 | `AuthenticationError` | 401 | Missing or expired credentials |
 | `AuthorizationError` | 403 | Insufficient role or plan |
 | `NotFoundError` | 404 | Resource not found |
@@ -527,13 +527,13 @@ except MedIntelligentError as e:
 
 ```ts
 import {
-  MedIntelligentClient,
+  NanoSenseClient,
   AuthorizationError,
   RateLimitError,
-  MedIntelligentError,
-} from "@medintelligent/sdk";
+  NanoSenseError,
+} from "@nanosense/client";
 
-const client = new MedIntelligentClient({
+const client = new NanoSenseClient({
   baseUrl: "https://api.nanosense.net",
   apiKey: "mrag_your_key_here",
 });
@@ -545,7 +545,7 @@ try {
     console.error("Deep mode not available on your plan.");
   } else if (e instanceof RateLimitError) {
     console.error("Rate limited:", e.detail);
-  } else if (e instanceof MedIntelligentError) {
+  } else if (e instanceof NanoSenseError) {
     console.error(`API error ${e.statusCode}:`, e.detail);
   }
 }
@@ -559,10 +559,10 @@ try {
 
 ```python
 import asyncio
-from medintelligent import AsyncMedIntelligentClient
+from nanosense import AsyncNanoSenseClient
 
 async def run_queries():
-    async with AsyncMedIntelligentClient(
+    async with AsyncNanoSenseClient(
         base_url="https://api.nanosense.net",
         api_key="mrag_your_key_here",
     ) as client:
@@ -582,9 +582,9 @@ asyncio.run(run_queries())
 All TypeScript SDK methods return `Promise<T>` and are always async.
 
 ```ts
-import { MedIntelligentClient } from "@medintelligent/sdk";
+import { NanoSenseClient } from "@nanosense/client";
 
-const client = new MedIntelligentClient({
+const client = new NanoSenseClient({
   baseUrl: "https://api.nanosense.net",
   apiKey: "mrag_your_key_here",
 });
@@ -607,10 +607,10 @@ The following example demonstrates a typical clinical query workflow: authentica
 
 ```python
 import os
-from medintelligent import MedIntelligentClient
-from medintelligent.exceptions import MedIntelligentError
+from nanosense import NanoSenseClient
+from nanosense.exceptions import NanoSenseError
 
-client = MedIntelligentClient(
+client = NanoSenseClient(
     base_url=os.environ["NANOSENSE_BASE_URL"],
     api_key=os.environ["NANOSENSE_API_KEY"],
 )
@@ -645,7 +645,7 @@ print(f"Tokens used this month: {usage.tokens_used:,}")
 
 ## Method Reference
 
-### Python — `MedIntelligentClient` and `AsyncMedIntelligentClient`
+### Python — `NanoSenseClient` and `AsyncNanoSenseClient`
 
 | Method | Description |
 |--------|-------------|
@@ -667,7 +667,7 @@ print(f"Tokens used this month: {usage.tokens_used:,}")
 | `sandbox_provision(tenant_id)` | Provision synthetic sandbox data |
 | `close()` | Close the underlying HTTP client |
 
-### TypeScript — `MedIntelligentClient`
+### TypeScript — `NanoSenseClient`
 
 | Method | Description |
 |--------|-------------|
